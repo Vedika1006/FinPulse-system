@@ -1,0 +1,107 @@
+from sqlalchemy import Column, Integer, String
+from app.database import Base
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from datetime import datetime
+from sqlalchemy import DateTime
+from sqlalchemy import UniqueConstraint
+from sqlalchemy import JSON
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+
+
+
+class Expense(Base):
+    __tablename__ = "expenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    amount = Column(Float, nullable=False)
+    category = Column(String, nullable=False)
+    description = Column(String)
+    note = Column(String, nullable=True)
+    date = Column(DateTime, nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+
+    owner = relationship("User")
+
+class Budget(Base):
+    __tablename__ = "budgets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)
+    # NOTE: physical column name avoids SQLite keyword conflicts ("limit")
+    limit = Column("limit_amount", Float, nullable=True)
+    month = Column(String, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "category",
+            "month",
+            name="unique_user_category_month",
+        ),
+    )
+
+
+class UserMemory(Base):
+    """
+    Light AI memory store per user (Phase 3).
+    Stores simple, explainable behavioral patterns only.
+    """
+
+    __tablename__ = "user_memory"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    frequent_category = Column(String, nullable=True)
+    habit = Column(String, nullable=True)  # e.g. "overspending", "steady", "improving savings"
+    meta = Column(JSON, nullable=True)  # small structured signals, e.g. {"top_category_share_pct": 42.3}
+    updated_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User")
+
+
+class Income(Base):
+    __tablename__ = "income"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    month = Column(String, nullable=False, index=True)  # YYYY-MM
+    amount = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "month",
+            name="unique_user_income_month",
+        ),
+    )
+
+class Goal(Base):
+    __tablename__ = "goals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    target_amount = Column(Float, nullable=False)
+    saved_amount = Column(Float, default=0.0)
+    deadline = Column(String, nullable=True) # YYYY-MM
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User")

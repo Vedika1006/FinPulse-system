@@ -1,0 +1,12 @@
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo1LCJleHAiOjE3NzU1OTM0Nzh9.qaZm6c-M3yn78g9MEOob0OAqYUblik1flf-LbYW_Ld0",
+  "token_type": "bearer"
+}
+hashfix@example.com
+mypassword123
+
+{
+  "category": "Food",
+  "amount": 5000,
+  "month": "2026-03"
+}

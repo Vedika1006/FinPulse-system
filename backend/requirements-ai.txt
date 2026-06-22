@@ -1,0 +1,3 @@
+# Optional: Groq-backed insights (LLaMA3). After core deps:
+#   pip install -r requirements-ai.txt
+groq>=0.9.0
