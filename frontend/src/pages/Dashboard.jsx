@@ -911,9 +911,7 @@ const Dashboard = () => {
           />
         </div>
         <div>
-          <SpendingForecast 
-            income={Number(income?.amount || 0)} 
-          />
+          <SpendingForecast />
         </div>
       </div>
 
