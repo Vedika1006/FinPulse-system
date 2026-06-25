@@ -20,6 +20,7 @@ import FormattedAIResponse from "../components/FormattedAIResponse";
 import { EmptyState } from "../components/ui/EmptyState";
 import { LineChart as LineChartIcon } from "lucide-react";
 import { AIFinancialInsights } from "../components/AIFinancialInsights";
+import ForecastChart from "../components/ForecastChart";
 import {
   LineChart,
   Line,
@@ -544,6 +545,8 @@ export default function Analytics() {
               </CardBody>
             </Card>
           </div>
+
+          <ForecastChart />
 
           {aiExplanation ? (
             <Card>

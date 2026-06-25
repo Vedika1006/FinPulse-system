@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 from datetime import datetime
-import calendar
 from typing import Optional
 
 from app.schemas import HealthScoreResponse, InsightResponse
@@ -12,6 +11,7 @@ from app.core.security import get_current_user
 from app.core.exceptions import BadRequestException
 from app.services.ai_service import generate_financial_insight
 from app.services.memory_service import get_or_refresh_user_memory
+from app.services.analytics_service import get_prophet_forecast
 
 router = APIRouter(
     prefix="/analytics",
@@ -359,52 +359,21 @@ def category_comparison(
     return [{"category": r[0], "total": float(r[1])} for r in result]
 
 @router.get("/forecast")
-def get_spending_forecast(
-    income: float = Query(0.0),
+def forecast(
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_current_user)
+    user_id: int = Depends(get_current_user),
 ):
-    now = datetime.utcnow()
-    year = now.year
-    month = now.month
-    
-    days_passed = now.day
-    _, total_days = calendar.monthrange(year, month)
-    
-    # Calculate current month's spend
-    current_spend_query = db.query(func.coalesce(func.sum(Expense.amount), 0)).filter(
-        Expense.user_id == user_id,
-        extract('year', Expense.created_at) == year,
-        extract('month', Expense.created_at) == month
-    ).scalar()
-    
-    current_spend = float(current_spend_query or 0.0)
-    
-    # Handle division by zero
-    if days_passed == 0:
-        days_passed = 1
-        
-    daily_avg = current_spend / days_passed
-    predicted_spend = daily_avg * total_days
-    
-    remaining_days = total_days - days_passed
-    
-    if remaining_days > 0:
-        safe_daily_limit = (income - current_spend) / remaining_days
-    else:
-        safe_daily_limit = income - current_spend
-        
-    if safe_daily_limit < 0:
-        safe_daily_limit = 0.0
-        
-    return {
-        "current_spend": current_spend,
-        "predicted_spend": predicted_spend,
-        "days_passed": days_passed,
-        "total_days": total_days,
-        "daily_avg": daily_avg,
-        "safe_daily_limit": safe_daily_limit
+    """
+    Returns Prophet (or rule-based fallback) spending forecast.
+    Response shape:
+    {
+      method: "prophet" | "rule_based" | "no_data",
+      forecast_7:  [{ ds, yhat, yhat_lower, yhat_upper }, ...],
+      forecast_30: [{ ds, yhat, yhat_lower, yhat_upper }, ...],
+      history:     [{ ds, y }, ...]
     }
+    """
+    return get_prophet_forecast(db, user_id)
 
 @router.get("/behavior")
 def get_behavior_fingerprint(
