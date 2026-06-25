@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["python311", "stdenv.cc.cc.lib"]
+nixPkgs = ["python311", "stdenv.cc.cc.lib", "zlib"]
 
 [start]
 cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
