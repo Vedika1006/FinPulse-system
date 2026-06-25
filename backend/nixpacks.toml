@@ -1,6 +1,15 @@
 [phases.setup]
-nixPkgs = ["python311"]
-aptPkgs = ["libstdc++6", "zlib1g", "libgomp1"]
+# "..." keeps Nixpacks' default Python provider packages
+nixPkgs = ["...", "python311"]
+# Required so numpy/faiss find libz, libstdc++ at runtime (apt alone is not enough with Nix Python)
+nixLibs = ["zlib", "gcc-unwrapped", "stdenv.cc.cc.lib"]
+aptPkgs = ["libstdc++6", "zlib1g", "libgomp1", "libgfortran5"]
+
+[phases.install]
+cmds = [
+  "pip install torch --index-url https://download.pytorch.org/whl/cpu",
+  "pip install -r requirements.txt",
+]
 
 [start]
 cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
