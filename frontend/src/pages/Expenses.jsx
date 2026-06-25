@@ -12,7 +12,7 @@ import { useTheme } from "../context/ThemeContext";
 import { formatCurrency } from "../utils/currency";
 import FormattedAIResponse from "../components/FormattedAIResponse";
 import NLExpenseInput from "../components/NLExpenseInput";
-
+import ReceiptScanner from "../components/ReceiptScanner";
 const Expenses = () => {
   const { showToast } = useToast();
   const { currency } = useTheme();
@@ -36,6 +36,7 @@ const Expenses = () => {
     category: "",
     amount: "",
     date: "",
+    description: "",
   });
   const [expenseToDelete, setExpenseToDelete] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -106,10 +107,12 @@ const Expenses = () => {
       await addExpense({
         category: form.category.trim(),
         amount,
-        description: form.date ? `Spent on ${form.date}` : null,
+        description: form.description.trim() || (form.date ? `Spent on ${form.date}` : null),
+        note: form.description.trim() || null,
+        date: form.date ? new Date(form.date).toISOString() : null,
       });
 
-      setForm({ category: "", amount: "", date: "" });
+      setForm({ category: "", amount: "", date: "", description: "" });
       setShowForm(false);
       fetchExpenses();
     } catch (err) {
@@ -324,6 +327,20 @@ const Expenses = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5 text-left">
+              <ReceiptScanner
+                onExtracted={(data) => {
+                  setForm((f) => ({
+                    ...f,
+                    amount: data?.amount != null ? String(data.amount) : f.amount,
+                    category: data?.category ? String(data.category).trim().toLowerCase() : f.category,
+                    date: data?.date || f.date,
+                    description:
+                      [data?.merchant, data?.description].filter(Boolean).join(" — ") || f.description,
+                  }));
+                  showToast("Receipt scanned — review fields and save", "success");
+                }}
+              />
+
               <input
                 type="text"
                 name="category"
