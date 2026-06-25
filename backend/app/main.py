@@ -1,9 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
+import threading
+from contextlib import asynccontextmanager
 
 from app.database import engine, Base
 from app import models
 from app.routes import auth, expenses, budgets, analytics, ai, income, goals, receipts
+from app.services.categorization_service import _load as warm_faiss
 
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -15,7 +18,14 @@ from app.core.exception_handler import (
     global_exception_handler
 )
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    threading.Thread(target=warm_faiss, daemon=True).start()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 # ✅ Register handlers FIRST (best practice)
 app.add_exception_handler(HTTPException, http_exception_handler)
