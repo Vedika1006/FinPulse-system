@@ -3,10 +3,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import engine, Base
 from app import models
-from app.routes import auth, expenses, budgets, analytics, ai, income, goals
+from app.routes import auth, expenses, budgets, analytics, ai, income, goals, receipts
 
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+
 
 from app.core.exception_handler import (
     http_exception_handler,
@@ -29,7 +30,7 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_origins=["*"],
+    allow_origins=["https://fin-pulse-system.vercel.app"],
 )
 
 # ✅ Then DB setup
@@ -54,8 +55,6 @@ def _ensure_schema() -> None:
                     ).first()
                     if not exists:
                         conn.execute(text("ALTER TABLE users ADD COLUMN name VARCHAR"))
-            except Exception:
-                pass
             except Exception:
                 pass
 
@@ -136,6 +135,8 @@ app.include_router(analytics.router)
 app.include_router(ai.router)
 app.include_router(income.router)
 app.include_router(goals.router)
+app.include_router(receipts.router)
+
 
 @app.get("/")
 def root():
