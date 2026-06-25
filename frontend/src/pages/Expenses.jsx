@@ -13,6 +13,7 @@ import { formatCurrency } from "../utils/currency";
 import FormattedAIResponse from "../components/FormattedAIResponse";
 import NLExpenseInput from "../components/NLExpenseInput";
 import ReceiptScanner from "../components/ReceiptScanner";
+import CategorySuggester from "../components/CategorySuggester";
 const Expenses = () => {
   const { showToast } = useToast();
   const { currency } = useTheme();
@@ -340,7 +341,14 @@ const Expenses = () => {
                   showToast("Receipt scanned — review fields and save", "success");
                 }}
               />
-
+              <CategorySuggester
+                merchant={form.description}
+                onSuggest={(result) => {
+                if (!form.category || form.category === "Other") {
+                  setForm({ ...form, category: result.category });
+                }
+              }}
+            />
               <input
                 type="text"
                 name="category"

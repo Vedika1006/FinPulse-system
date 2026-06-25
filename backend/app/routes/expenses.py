@@ -6,6 +6,7 @@ from app.models import Expense
 from app.schemas import ExpenseCreate, ExpenseResponse
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.core.security import get_current_user
+from app.services.categorization_service import categorize_merchant
 
 router = APIRouter(prefix="/expenses", tags=["Expenses"])
 
@@ -24,6 +25,15 @@ def create_expense(
     if not normalized_category:
         # Keep system consistent even if client sends blank.
         normalized_category = "uncategorized"
+
+    # If user sent "other" or left it uncategorized, let FAISS decide
+    if normalized_category in ("other", "uncategorized"):
+        result = categorize_merchant(
+            expense.description or "",
+            expense.description or "",
+        )
+        normalized_category = result["category"].lower()
+
     new_expense = Expense(
         amount=expense.amount,
         category=normalized_category,
@@ -39,6 +49,19 @@ def create_expense(
 
     return new_expense
 
+@router.post("/categorize")
+def suggest_category(
+    payload: dict,
+    current_user=Depends(get_current_user),
+):
+    """
+    Quick endpoint the frontend calls while the user is typing.
+    Body: { "merchant": "Swiggy", "description": "dinner" }
+    Returns: { "category": "Food", "confidence": 0.95, "method": "faiss" }
+    """
+    merchant = payload.get("merchant", "")
+    description = payload.get("description", "")
+    return categorize_merchant(merchant, description)
 
 # ✅ GET ALL EXPENSES
 @router.get("/", response_model=list[ExpenseResponse])
@@ -133,3 +156,5 @@ def delete_expense(
     db.commit()
 
     return {"message": "Expense deleted successfully"}
+
+
