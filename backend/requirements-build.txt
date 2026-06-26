@@ -1,0 +1,3 @@
+# ML deps for scripts/build_embeddings.py only — NOT installed on Railway runtime
+torch>=2.0.0
+sentence-transformers==3.0.1
