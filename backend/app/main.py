@@ -21,7 +21,14 @@ from app.core.exception_handler import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    threading.Thread(target=warm_faiss, daemon=True).start()
+    def _warm():
+        try:
+            warm_faiss()
+            print("[FAISS] Warm-up complete ✓")
+        except Exception as exc:
+            print(f"[FAISS] Warm-up failed (Groq fallback still works): {exc}")
+
+    threading.Thread(target=_warm, daemon=True).start()
     yield
 
 
