@@ -11,8 +11,12 @@ Falls back to Groq LLM when FAISS confidence < 0.80.
 import json
 import os
 import threading
+from pathlib import Path
 
 import numpy as np
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 # ─── Merchant knowledge base (200+ Indian merchants) ─────────────────
 MERCHANT_CATEGORIES: list[tuple[str, str]] = [

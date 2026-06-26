@@ -1,9 +1,8 @@
 [phases.setup]
-# "..." keeps Nixpacks' default Python provider packages
-nixPkgs = ["...", "python311"]
-# Required so numpy/faiss find libz, libstdc++ at runtime (apt alone is not enough with Nix Python)
-nixLibs = ["zlib", "gcc-unwrapped", "stdenv.cc.cc.lib"]
-aptPkgs = ["libstdc++6", "zlib1g", "libgomp1", "libgfortran5"]
+# Do NOT add python311 here — Nixpacks already provides Python 3.12 and a second
+# Python package causes a Nix store collision at build time.
+nixLibs = ["...", "zlib", "gcc-unwrapped", "stdenv.cc.cc.lib"]
+aptPkgs = ["...", "libstdc++6", "zlib1g", "libgomp1", "libgfortran5"]
 
 [phases.install]
 cmds = [
