@@ -359,7 +359,13 @@ export default function Analytics() {
           ══════════════════════════════════════════════ */}
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <AIFinancialInsights insights={insightsList} loading={false} health={health} />
+              <AIFinancialInsights
+                insights={insightsList}
+                loading={false}
+                health={health}
+                hasIncome={hasIncome}
+                hasBudgets={hasBudgets}
+              />
             </div>
 
             {/* Next actions panel */}
