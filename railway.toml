@@ -2,5 +2,4 @@
 builder = "DOCKERFILE"
 dockerfilePath = "backend/Dockerfile"
 
-[deploy]
-startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+# Do not set startCommand — backend/Dockerfile + start.sh handle PORT.
