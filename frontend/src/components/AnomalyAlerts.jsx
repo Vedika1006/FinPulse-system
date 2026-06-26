@@ -1,69 +1,87 @@
-import React, { useState, useEffect } from 'react';
-import API from '../api/axios';
+import { useState, useEffect } from "react";
+import { AlertOctagon, AlertTriangle, Info, Zap } from "lucide-react";
+import API from "../api/axios";
+
+const SEVERITY_CONFIG = {
+  high: {
+    Icon:       AlertOctagon,
+    container:  "bg-red-50 border-red-200 dark:bg-red-500/10 dark:border-red-500/20",
+    iconColor:  "text-red-600 dark:text-red-400",
+    badge:      "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200",
+    label:      "High",
+  },
+  medium: {
+    Icon:       AlertTriangle,
+    container:  "bg-amber-50 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20",
+    iconColor:  "text-amber-600 dark:text-amber-400",
+    badge:      "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200",
+    label:      "Medium",
+  },
+  low: {
+    Icon:       Info,
+    container:  "bg-blue-50 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/20",
+    iconColor:  "text-blue-600 dark:text-blue-400",
+    badge:      "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200",
+    label:      "Low",
+  },
+};
 
 const AnomalyAlerts = () => {
   const [anomalies, setAnomalies] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading,   setLoading]   = useState(true);
 
   useEffect(() => {
-    const fetchAnomalies = async () => {
-      try {
-        const response = await API.get('/analytics/anomalies');
-        setAnomalies(response.data?.anomalies || []);
-      } catch (error) {
-        console.error("Failed to fetch anomalies", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAnomalies();
+    API.get("/analytics/anomalies")
+      .then((res) => setAnomalies(res.data?.anomalies || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
-    return <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 animate-pulse h-48 w-full dark:bg-[#171A35] dark:border-white/10"></div>;
+    return (
+      <div className="h-32 w-full animate-pulse rounded-2xl border border-gray-200 bg-white dark:border-white/[0.06] dark:bg-app-surface" />
+    );
   }
 
-  if (anomalies.length === 0) {
-    return null; // Don't show if no anomalies exist
-  }
-
-  const getSeverityStyles = (severity) => {
-    switch (severity?.toLowerCase()) {
-      case 'high':
-        return { icon: '🔥', bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-200 dark:border-red-500/20', text: 'text-red-700 dark:text-red-300', badge: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200' };
-      case 'medium':
-        return { icon: '⚠️', bg: 'bg-yellow-50 dark:bg-yellow-900/20', border: 'border-yellow-200 dark:border-yellow-500/20', text: 'text-yellow-700 dark:text-yellow-300', badge: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200' };
-      case 'low':
-      default:
-        return { icon: '🔍', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-500/20', text: 'text-blue-700 dark:text-blue-300', badge: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200' };
-    }
-  };
+  if (anomalies.length === 0) return null;
 
   return (
-    <div className="p-6 rounded-2xl shadow-sm border border-gray-200 bg-white dark:bg-[#171A35] dark:border-white/10 w-full mb-6 font-sans">
-      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-        <span>🚨</span> Unusual Spending Detected
+    <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-white/[0.06] dark:bg-app-surface">
+      {/* Header — Zap icon replaces 🚨 emoji */}
+      <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
+        <Zap className="h-4 w-4 text-amber-500" aria-hidden />
+        Unusual Spending Detected
       </h3>
-      
-      <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+
+      <div className="max-h-96 space-y-3 overflow-y-auto pr-1">
         {anomalies.map((anomaly, idx) => {
-          const styles = getSeverityStyles(anomaly.severity);
+          const key  = (anomaly.severity || "low").toLowerCase();
+          const cfg  = SEVERITY_CONFIG[key] || SEVERITY_CONFIG.low;
+          const Icon = cfg.Icon;
+
           return (
-            <div key={idx} className={`p-4 rounded-xl border ${styles.bg} ${styles.border} flex flex-col sm:flex-row sm:items-center gap-4 transition-all hover:scale-[1.01]`}>
-              <div className="text-3xl shrink-0">{styles.icon}</div>
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-1">
-                  <span className="font-extrabold text-lg text-gray-900 dark:text-white">₹{anomaly.amount.toLocaleString()}</span>
-                  <span className="text-sm font-medium text-gray-600 dark:text-[#9AA3B2]">on {anomaly.category}</span>
-                  <span className={`text-[10px] uppercase tracking-wider font-bold px-2.5 py-0.5 rounded-full ${styles.badge}`}>
-                    {anomaly.severity}
+            <div
+              key={idx}
+              className={`flex items-start gap-3 rounded-xl border p-4 transition-all ${cfg.container}`}
+            >
+              {/* Severity icon replaces emoji */}
+              <Icon className={`mt-0.5 h-5 w-5 flex-shrink-0 ${cfg.iconColor}`} aria-hidden />
+
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <span className="font-semibold text-gray-900 dark:text-white tabular-nums">
+                    ₹{Number(anomaly.amount).toLocaleString("en-IN")}
+                  </span>
+                  <span className="text-sm text-gray-500 dark:text-app-muted">
+                    on {anomaly.category}
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cfg.badge}`}>
+                    {cfg.label}
                   </span>
                 </div>
-                <p className={`text-sm font-semibold mb-1 ${styles.text}`}>
-                  {anomaly.reason}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Date: {anomaly.date}
+                <p className={`text-sm font-medium ${cfg.iconColor}`}>{anomaly.reason}</p>
+                <p className="mt-1 text-xs text-gray-400 dark:text-app-muted">
+                  {anomaly.date}
                 </p>
               </div>
             </div>
