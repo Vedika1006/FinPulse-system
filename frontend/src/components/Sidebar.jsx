@@ -1,38 +1,45 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Wallet, PiggyBank, BarChart3, Settings } from "lucide-react";
+import {
+  LayoutDashboard,
+  Wallet,
+  PiggyBank,
+  BarChart3,
+  Settings,
+  Zap,
+} from "lucide-react";
 
 const navItems = [
-  { to: "/", label: "Dashboard", Icon: LayoutDashboard, end: true },
-  { to: "/expenses", label: "Expenses", Icon: Wallet, end: false },
-  { to: "/budgets", label: "Budgets", Icon: PiggyBank, end: false },
-  { to: "/analytics", label: "Analytics", Icon: BarChart3, end: false },
-  { to: "/settings", label: "Settings", Icon: Settings, end: false },
+  { to: "/",          label: "Dashboard", Icon: LayoutDashboard, end: true  },
+  { to: "/expenses",  label: "Expenses",  Icon: Wallet,          end: false },
+  { to: "/budgets",   label: "Budgets",   Icon: PiggyBank,       end: false },
+  { to: "/analytics", label: "Analytics", Icon: BarChart3,       end: false },
+  { to: "/settings",  label: "Settings",  Icon: Settings,        end: false },
 ];
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-30 flex h-screen w-64 shrink-0 flex-col border-r border-gray-200 bg-white shadow-sm transition-transform duration-300 md:relative md:translate-x-0 dark:border-white/10 dark:bg-app-surface/95 dark:shadow-glow-sm dark:backdrop-blur-xl ${
+      className={`fixed inset-y-0 left-0 z-30 flex h-screen w-60 shrink-0 flex-col border-r border-gray-200 bg-white transition-transform duration-300 md:relative md:translate-x-0 dark:border-white/[0.06] dark:bg-app-surface ${
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       }`}
     >
-      <div className="border-b border-gray-200 px-5 py-6 text-left dark:border-white/10">
-        <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm dark:bg-gradient-to-br dark:from-app-secondary dark:to-app-accent dark:shadow-glow-sm dark:ring-white/20">
-            <span className="text-lg" aria-hidden>
-              {"\u25C8"}
-            </span>
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">ExpenseAI</h1>
-            <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500 dark:text-app-muted">
-              Intelligence
-            </p>
-          </div>
+      {/* ── Logo ── */}
+      <div className="flex items-center gap-2.5 border-b border-gray-200 px-5 py-5 dark:border-white/[0.06]">
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-cyan-500 text-[11px] font-semibold tracking-tight text-[#06080F]">
+          FP
+        </div>
+        <div>
+          <h1 className="text-sm font-semibold leading-none tracking-tight text-gray-900 dark:text-white">
+            FinPulse
+          </h1>
+          <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">
+            Intelligence
+          </p>
         </div>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="Main">
+      {/* ── Nav ── */}
+      <nav className="flex flex-1 flex-col gap-0.5 p-3 pt-4" aria-label="Main">
         {navItems.map(({ to, label, Icon, end }) => (
           <NavLink
             key={to}
@@ -40,45 +47,51 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
             end={end}
             onClick={() => setSidebarOpen && setSidebarOpen(false)}
             className={({ isActive }) =>
-              [
-                "group flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors",
+              `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
                 isActive
-                  ? "border-transparent bg-blue-50 text-blue-600 dark:border-app-accent/40 dark:bg-gradient-to-r dark:from-app-primary/50 dark:via-app-secondary/35 dark:to-transparent dark:text-white dark:shadow-glow-active dark:shadow-indigo-500/20 dark:ring-white/10"
-                  : "border-transparent bg-transparent text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:text-app-subtle dark:hover:border-white/10 dark:hover:bg-white/5 dark:hover:text-white dark:hover:shadow-indigo-500/10",
-              ].join(" ")
+                  ? "bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-app-muted dark:hover:bg-white/5 dark:hover:text-white"
+              }`
             }
           >
             {({ isActive }) => (
               <>
-                <span
-                  className={[
-                    "flex h-9 w-9 items-center justify-center rounded-lg border transition-colors",
+                <Icon
+                  className={`h-[17px] w-[17px] flex-shrink-0 transition-colors ${
                     isActive
-                      ? "border-blue-100 bg-white text-blue-600 shadow-sm dark:border-white/20 dark:bg-white/10 dark:text-app-highlight dark:shadow-inner"
-                      : "border-gray-200 bg-gray-50 text-gray-500 group-hover:border-gray-300 group-hover:text-blue-600 dark:border-white/5 dark:bg-white/5 dark:text-app-muted dark:group-hover:border-white/15 dark:group-hover:text-app-highlight",
-                  ].join(" ")}
-                >
-                  <Icon className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden />
-                </span>
-                <span className="flex-1 text-left">{label}</span>
-                {isActive ? (
+                      ? "text-cyan-600 dark:text-cyan-400"
+                      : "text-gray-400 group-hover:text-gray-600 dark:text-app-muted dark:group-hover:text-app-subtle"
+                  }`}
+                  strokeWidth={2}
+                  aria-hidden
+                />
+                <span className="flex-1">{label}</span>
+                {isActive && (
                   <span
-                    className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-600 dark:bg-app-highlight dark:shadow-[0_0_12px_rgba(138,124,255,0.9)]"
+                    className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-cyan-500 dark:bg-cyan-400 dark:shadow-[0_0_8px_rgba(6,182,212,0.8)]"
                     aria-hidden
                   />
-                ) : null}
+                )}
               </>
             )}
           </NavLink>
         ))}
       </nav>
 
-      <div className="mt-auto border-t border-gray-200 p-4 dark:border-white/10">
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-left shadow-sm dark:border-white/10 dark:bg-gradient-to-br dark:from-app-card/90 dark:to-app-primary/20 dark:shadow-inner dark:backdrop-blur-md">
-          <p className="text-xs font-semibold text-gray-900 dark:text-white">Premium workspace</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-gray-600 dark:text-app-muted">
-            Insights refresh as you record activity.
-          </p>
+      {/* ── Bottom badge ── */}
+      <div className="border-t border-gray-200 p-4 dark:border-white/[0.06]">
+        <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-white/[0.06] dark:bg-white/[0.03]">
+          <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-cyan-500/15">
+            <Zap className="h-3 w-3 text-cyan-500" aria-hidden />
+          </div>
+          <div>
+            <p className="text-[11px] font-medium leading-none text-gray-700 dark:text-app-subtle">
+              AI-powered insights
+            </p>
+            <p className="mt-0.5 text-[10px] text-gray-400 dark:text-app-muted">
+              Updates as you track
+            </p>
+          </div>
         </div>
       </div>
     </aside>

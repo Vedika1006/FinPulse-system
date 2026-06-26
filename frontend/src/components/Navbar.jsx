@@ -18,7 +18,7 @@ const Navbar = ({ toggleSidebar, alerts }) => {
 
   const meta = useMemo(() => {
     const found = ROUTE_TITLES.find((r) => r.match.test(location.pathname));
-    return found ?? { title: "ExpenseAI", subtitle: "Command center" };
+    return found ?? { title: "FinPulse", subtitle: "Command center" };
   }, [location.pathname]);
 
   return (
