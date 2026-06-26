@@ -7,23 +7,53 @@ import { useToast } from "../components/ToastProvider";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { TableSkeleton } from "../components/ui/Skeleton";
-import { Receipt, Download, Sparkles } from "lucide-react";
+import { Receipt, Download, Sparkles, AlertTriangle } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { formatCurrency } from "../utils/currency";
 import FormattedAIResponse from "../components/FormattedAIResponse";
 import NLExpenseInput from "../components/NLExpenseInput";
 import ReceiptScanner from "../components/ReceiptScanner";
 import CategorySuggester from "../components/CategorySuggester";
+
+// Severity badge rendered inline on anomalous table rows.
+// `title` gives a native browser tooltip with the reason on hover.
+const AnomalyBadge = ({ severity, reason }) => {
+  const classes = {
+    high:
+      "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300",
+    medium:
+      "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+    low:
+      "bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300",
+  };
+  const labels = { high: "Anomaly", medium: "Unusual", low: "Watch" };
+
+  return (
+    <span
+      title={reason}
+      className={`ml-2 inline-flex cursor-help items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+        classes[severity] ?? classes.low
+      }`}
+    >
+      <AlertTriangle className="h-2.5 w-2.5" />
+      {labels[severity] ?? "Watch"}
+    </span>
+  );
+};
+
 const Expenses = () => {
   const { showToast } = useToast();
   const { currency } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
+
   const [expenses, setExpenses] = useState([]);
+  const [anomalyMap, setAnomalyMap] = useState({}); // { [expense_id]: { severity, reason } }
   const [showForm, setShowForm] = useState(false);
   const [explaining, setExplaining] = useState(false);
   const [aiExplanation, setAiExplanation] = useState("");
   const explanationRef = useState(() => ({ current: null }))[0];
   const [highlightExplanation, setHighlightExplanation] = useState(false);
+
   const selectedCategory = (searchParams.get("category") || "").trim();
   const categoryLabel = selectedCategory
     ? selectedCategory
@@ -42,6 +72,8 @@ const Expenses = () => {
   const [expenseToDelete, setExpenseToDelete] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // ── Data fetching ────────────────────────────────────────────────────────────
+
   const fetchExpenses = async () => {
     setLoading(true);
     try {
@@ -54,14 +86,47 @@ const Expenses = () => {
     }
   };
 
+  // Fetch anomalies separately so a slow ML call never blocks the expense list.
+  const fetchAnomalies = async () => {
+    try {
+      const res = await API.get("/analytics/anomalies");
+      const list = res.data?.anomalies ?? [];
+      const map = {};
+      for (const a of list) {
+        map[a.expense_id] = { severity: a.severity, reason: a.reason };
+      }
+      setAnomalyMap(map);
+    } catch (err) {
+      // Anomaly detection is non-critical — fail silently.
+      console.warn("[Anomaly] Could not load:", err?.response?.data ?? err.message);
+    }
+  };
+
   useEffect(() => {
     fetchExpenses();
+    fetchAnomalies();
   }, []);
+
+  // Refresh anomalies after adding/deleting so badges stay current.
+  const refreshAll = () => {
+    fetchExpenses();
+    fetchAnomalies();
+  };
+
+  // ── Derived state ────────────────────────────────────────────────────────────
 
   const visibleExpenses = useMemo(() => {
     if (!selectedCategory) return expenses;
-    return expenses.filter((e) => String(e.category || "").toLowerCase() === selectedCategory.toLowerCase());
+    return expenses.filter(
+      (e) =>
+        String(e.category || "").toLowerCase() ===
+        selectedCategory.toLowerCase()
+    );
   }, [expenses, selectedCategory]);
+
+  const anomalyCount = Object.keys(anomalyMap).length;
+
+  // ── Handlers ─────────────────────────────────────────────────────────────────
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -69,7 +134,6 @@ const Expenses = () => {
 
   const exportToCSV = () => {
     if (visibleExpenses.length === 0) return;
-
     const headers = ["Date", "Category", "Amount", "Description", "Note"];
     const rows = visibleExpenses.map((exp) => {
       const dateStr = exp.created_at ? exp.created_at.substring(0, 10) : "";
@@ -83,8 +147,10 @@ const Expenses = () => {
         `"${note}"`,
       ];
     });
-
-    const csvContent = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.join(",")),
+    ].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -98,37 +164,32 @@ const Expenses = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const amount = parseFloat(form.amount, 10);
-    if (Number.isNaN(amount) || amount <= 0) {
-      return;
-    }
-
+    if (Number.isNaN(amount) || amount <= 0) return;
     try {
       await addExpense({
         category: form.category.trim(),
         amount,
-        description: form.description.trim() || (form.date ? `Spent on ${form.date}` : null),
+        description:
+          form.description.trim() ||
+          (form.date ? `Spent on ${form.date}` : null),
         note: form.description.trim() || null,
         date: form.date ? new Date(form.date).toISOString() : null,
       });
-
       setForm({ category: "", amount: "", date: "", description: "" });
       setShowForm(false);
-      fetchExpenses();
+      refreshAll();
     } catch (err) {
       console.error("ERROR:", err.response || err);
     }
   };
 
-  const handleDelete = (id) => {
-    setExpenseToDelete(id);
-  };
+  const handleDelete = (id) => setExpenseToDelete(id);
   const confirmDelete = async () => {
     if (!expenseToDelete) return;
     await deleteExpense(expenseToDelete);
     setExpenseToDelete(null);
-    fetchExpenses();
+    refreshAll();
   };
 
   const askAIExplain = async () => {
@@ -149,7 +210,10 @@ const Expenses = () => {
       setAiExplanation(reply);
       showToast("AI explanation ready", "success", {
         onClick: () => {
-          explanationRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+          explanationRef.current?.scrollIntoView?.({
+            behavior: "smooth",
+            block: "start",
+          });
           setHighlightExplanation(true);
           window.setTimeout(() => setHighlightExplanation(false), 1600);
         },
@@ -164,12 +228,19 @@ const Expenses = () => {
   const inputClass =
     "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 dark:border-white/10 dark:bg-app-surface/80 dark:text-white dark:placeholder:text-app-muted dark:focus:border-app-accent/50 dark:focus:ring-app-accent/25";
 
+  // ── Render ───────────────────────────────────────────────────────────────────
+
   return (
     <div className="space-y-6">
+      {/* Page header */}
       <div className="flex flex-col gap-4 text-left sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Expenses</h1>
-          <p className="mt-1 text-sm text-gray-600 dark:text-app-muted">Review, add, and curate your ledger.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
+            Expenses
+          </h1>
+          <p className="mt-1 text-sm text-gray-600 dark:text-app-muted">
+            Review, add, and curate your ledger.
+          </p>
         </div>
         <button
           type="button"
@@ -198,14 +269,27 @@ const Expenses = () => {
         </div>
       </div>
 
+      {/* Smart Add */}
       <div className="bg-purple-50/50 p-4 rounded-xl border border-purple-100 dark:bg-purple-900/10 dark:border-purple-800/30">
         <div className="mb-2 text-sm font-medium text-purple-900 dark:text-purple-200 flex items-center gap-1.5">
           <Sparkles className="w-4 h-4" />
           Smart Add
         </div>
-        <NLExpenseInput onExpenseAdded={fetchExpenses} />
+        <NLExpenseInput onExpenseAdded={refreshAll} />
       </div>
 
+      {/* Anomaly summary banner — only shown when ML has flagged something */}
+      {anomalyCount > 0 && (
+        <div className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            <span className="font-semibold">{anomalyCount} unusual expense{anomalyCount > 1 ? "s" : ""}</span>
+            {" "}detected by Isolation Forest — hover the badge on any flagged row for details.
+          </span>
+        </div>
+      )}
+
+      {/* Expense table */}
       <Card>
         <CardHeader
           title="All expenses"
@@ -238,7 +322,7 @@ const Expenses = () => {
             </div>
           ) : visibleExpenses.length === 0 ? (
             <div className="p-6">
-              <EmptyState 
+              <EmptyState
                 icon={Receipt}
                 title="No expenses yet. Start tracking your spending."
                 actionLabel="Add Expense"
@@ -256,35 +340,60 @@ const Expenses = () => {
                 </tr>
               </thead>
               <tbody>
-                {visibleExpenses.map((exp) => (
-                  <tr
-                    key={exp.id}
-                    className="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-white/5 dark:hover:bg-white/[0.04]"
-                  >
-                    <td className="px-6 py-3 font-medium text-gray-900 dark:text-app-subtle">
-                      {String(exp.category || "")
-                        .split(/[\s_-]+/g)
-                        .filter(Boolean)
-                        .map((w) => w.slice(0, 1).toUpperCase() + w.slice(1).toLowerCase())
-                        .join(" ")}
-                    </td>
-                    <td className="px-6 py-3 tabular-nums text-gray-900 dark:text-white">
-                      {formatCurrency(exp.amount, currency)}
-                    </td>
-                    <td className="px-6 py-3 text-gray-600 dark:text-app-muted">
-                      {exp.created_at ? new Date(exp.created_at).toLocaleDateString() : "—"}
-                    </td>
-                    <td className="px-6 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(exp.id)}
-                        className="rounded-lg px-2 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {visibleExpenses.map((exp) => {
+                  const anomaly = anomalyMap[exp.id];
+                  return (
+                    <tr
+                      key={exp.id}
+                      className={`border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-white/5 dark:hover:bg-white/[0.04] ${
+                        anomaly
+                          ? "bg-amber-50/40 dark:bg-amber-500/[0.04]"
+                          : ""
+                      }`}
+                    >
+                      {/* Category — badge sits here, next to the category name */}
+                      <td className="px-6 py-3 font-medium text-gray-900 dark:text-app-subtle">
+                        <span className="inline-flex items-center flex-wrap gap-x-1">
+                          {String(exp.category || "")
+                            .split(/[\s_-]+/g)
+                            .filter(Boolean)
+                            .map(
+                              (w) =>
+                                w.slice(0, 1).toUpperCase() +
+                                w.slice(1).toLowerCase()
+                            )
+                            .join(" ")}
+                          {anomaly && (
+                            <AnomalyBadge
+                              severity={anomaly.severity}
+                              reason={anomaly.reason}
+                            />
+                          )}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-3 tabular-nums text-gray-900 dark:text-white">
+                        {formatCurrency(exp.amount, currency)}
+                      </td>
+
+                      <td className="px-6 py-3 text-gray-600 dark:text-app-muted">
+                        {exp.created_at
+                          ? new Date(exp.created_at).toLocaleDateString()
+                          : "—"}
+                      </td>
+
+                      <td className="px-6 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(exp.id)}
+                          className="rounded-lg px-2 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -299,13 +408,21 @@ const Expenses = () => {
         onCancel={() => setExpenseToDelete(null)}
       />
 
+      {/* AI explanation card */}
       {aiExplanation ? (
         <Card>
           <div
             ref={(el) => (explanationRef.current = el)}
-            className={highlightExplanation ? "rounded-2xl ring-2 ring-blue-600 ring-offset-2 ring-offset-[#F5F7FB] transition" : ""}
+            className={
+              highlightExplanation
+                ? "rounded-2xl ring-2 ring-blue-600 ring-offset-2 ring-offset-[#F5F7FB] transition"
+                : ""
+            }
           >
-            <CardHeader title="AI Explanation" subtitle="Spending behavior summary" />
+            <CardHeader
+              title="AI Explanation"
+              subtitle="Spending behavior summary"
+            />
           </div>
           <CardBody className="pt-0">
             <FormattedAIResponse text={aiExplanation} />
@@ -313,6 +430,7 @@ const Expenses = () => {
         </Card>
       ) : null}
 
+      {/* Add expense modal */}
       {showForm ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
@@ -323,32 +441,47 @@ const Expenses = () => {
           />
           <div className="relative z-10 w-full max-w-md rounded-2xl border border-gray-200 bg-white p-0 shadow-lg dark:border-white/10 dark:bg-app-card">
             <div className="border-b border-gray-200 px-6 py-4 text-left dark:border-white/10">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Add expense</h3>
-              <p className="mt-0.5 text-xs text-gray-600 dark:text-app-muted">Details sync instantly with your backend.</p>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Add expense
+              </h3>
+              <p className="mt-0.5 text-xs text-gray-600 dark:text-app-muted">
+                Details sync instantly with your backend.
+              </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5 text-left">
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-4 px-6 py-5 text-left"
+            >
               <ReceiptScanner
                 onExtracted={(data) => {
                   setForm((f) => ({
                     ...f,
-                    amount: data?.amount != null ? String(data.amount) : f.amount,
-                    category: data?.category ? String(data.category).trim().toLowerCase() : f.category,
+                    amount:
+                      data?.amount != null ? String(data.amount) : f.amount,
+                    category: data?.category
+                      ? String(data.category).trim().toLowerCase()
+                      : f.category,
                     date: data?.date || f.date,
                     description:
-                      [data?.merchant, data?.description].filter(Boolean).join(" — ") || f.description,
+                      [data?.merchant, data?.description]
+                        .filter(Boolean)
+                        .join(" — ") || f.description,
                   }));
-                  showToast("Receipt scanned — review fields and save", "success");
+                  showToast(
+                    "Receipt scanned — review fields and save",
+                    "success"
+                  );
                 }}
               />
               <CategorySuggester
                 merchant={form.description}
                 onSuggest={(result) => {
-                if (!form.category || form.category === "Other") {
-                  setForm({ ...form, category: result.category });
-                }
-              }}
-            />
+                  if (!form.category || form.category === "Other") {
+                    setForm({ ...form, category: result.category });
+                  }
+                }}
+              />
               <input
                 type="text"
                 name="category"
@@ -358,7 +491,6 @@ const Expenses = () => {
                 className={inputClass}
                 required
               />
-
               <input
                 type="number"
                 name="amount"
@@ -368,8 +500,14 @@ const Expenses = () => {
                 className={inputClass}
                 required
               />
-
-              <input type="date" name="date" value={form.date} onChange={handleChange} className={inputClass} required />
+              <input
+                type="date"
+                name="date"
+                value={form.date}
+                onChange={handleChange}
+                className={inputClass}
+                required
+              />
 
               <div className="flex justify-end gap-2 pt-2">
                 <button
@@ -379,7 +517,6 @@ const Expenses = () => {
                 >
                   Cancel
                 </button>
-
                 <button
                   type="submit"
                   className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 dark:shadow-glow-sm"

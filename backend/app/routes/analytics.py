@@ -11,7 +11,7 @@ from app.core.security import get_current_user
 from app.core.exceptions import BadRequestException
 from app.services.ai_service import generate_financial_insight
 from app.services.memory_service import get_or_refresh_user_memory
-from app.services.analytics_service import get_prophet_forecast
+from app.services.analytics_service import get_prophet_forecast, get_isolation_forest_anomalies
 
 router = APIRouter(
     prefix="/analytics",
@@ -452,7 +452,7 @@ def get_behavior_fingerprint(
         "insight": insight
     }
 
-@router.get("/anomalies")
+"""@router.get("/anomalies")
 def get_expense_anomalies(
     db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user)
@@ -531,3 +531,15 @@ def get_expense_anomalies(
     anomalies.sort(key=lambda x: severity_order.get(x["severity"], 4))
             
     return {"anomalies": anomalies}
+"""
+@router.get("/anomalies")
+def get_expense_anomalies(
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user),
+):
+    """
+    Returns statistically anomalous expenses using Isolation Forest (sklearn).
+    Each anomaly includes expense_id so the frontend can badge individual rows.
+    Falls back gracefully if data is insufficient or sklearn is unavailable.
+    """
+    return get_isolation_forest_anomalies(db, user_id)
