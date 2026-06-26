@@ -15,10 +15,12 @@ body {
   min-height: 100svh;
   background-color: #f5f7fb;
   color: #111827;
+  font-family: "Inter", system-ui, sans-serif;
+  scroll-behavior: smooth;
 }
 
 .dark body {
-  background-color: #0f1226;
+  background-color: #080c14;
   color: #ffffff;
 }
 
