@@ -8,7 +8,8 @@ aptPkgs = ["...", "libstdc++6", "zlib1g", "libgomp1", "libgfortran5"]
 cmds = [
   "pip install torch --index-url https://download.pytorch.org/whl/cpu",
   "pip install -r requirements.txt",
+  "chmod +x start.sh",
 ]
 
 [start]
-cmd = "./start.sh"
+cmd = "sh start.sh"
