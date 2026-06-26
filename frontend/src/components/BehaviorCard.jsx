@@ -1,71 +1,94 @@
-import React, { useState, useEffect } from 'react';
-import API from '../api/axios';
+import { useState, useEffect } from "react";
+import { TrendingUp, Zap, Scale } from "lucide-react";
+import API from "../api/axios";
+
+const BEHAVIOR_CONFIG = {
+  Saver: {
+    Icon:  TrendingUp,
+    color: "text-emerald-700 dark:text-emerald-300",
+    bg:    "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-500/20",
+    icon:  "text-emerald-600 dark:text-emerald-400",
+  },
+  "Impulse Spender": {
+    Icon:  Zap,
+    color: "text-red-700 dark:text-red-300",
+    bg:    "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-500/20",
+    icon:  "text-red-600 dark:text-red-400",
+  },
+  "Lifestyle Creep": {
+    Icon:  TrendingUp,
+    color: "text-amber-700 dark:text-amber-300",
+    bg:    "bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-500/20",
+    icon:  "text-amber-600 dark:text-amber-400",
+  },
+  Balanced: {
+    Icon:  Scale,
+    color: "text-cyan-700 dark:text-cyan-300",
+    bg:    "bg-cyan-50 border-cyan-200 dark:bg-cyan-900/20 dark:border-cyan-500/20",
+    icon:  "text-cyan-600 dark:text-cyan-400",
+  },
+};
 
 const BehaviorCard = () => {
   const [behavior, setBehavior] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading,  setLoading]  = useState(true);
 
   useEffect(() => {
-    const fetchBehavior = async () => {
-      try {
-        const response = await API.get('/analytics/behavior');
-        setBehavior(response.data);
-      } catch (error) {
-        console.error("Failed to fetch behavior", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBehavior();
+    API.get("/analytics/behavior")
+      .then((res) => setBehavior(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
-    return <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 animate-pulse h-48 w-full dark:bg-[#171A35] dark:border-white/10"></div>;
+    return (
+      <div className="h-48 w-full animate-pulse rounded-2xl border border-gray-200 bg-white dark:border-white/[0.06] dark:bg-app-surface" />
+    );
   }
 
   if (!behavior) return null;
 
   const { type, savings_rate, top_category, insight } = behavior;
-
-  const getStyles = () => {
-    switch (type) {
-      case "Saver":
-        return { color: "text-green-700 dark:text-green-300", bg: "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-500/20", icon: "🌱" };
-      case "Impulse Spender":
-        return { color: "text-red-700 dark:text-red-300", bg: "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-500/20", icon: "⚡" };
-      case "Lifestyle Creep":
-        return { color: "text-amber-700 dark:text-amber-300", bg: "bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-500/20", icon: "📈" };
-      case "Balanced":
-      default:
-        return { color: "text-blue-700 dark:text-blue-300", bg: "bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-500/20", icon: "⚖️" };
-    }
-  };
-
-  const styles = getStyles();
+  const cfg  = BEHAVIOR_CONFIG[type] || BEHAVIOR_CONFIG.Balanced;
+  const Icon = cfg.Icon;
 
   return (
-    <div className={`p-6 rounded-2xl shadow-sm border w-full flex flex-col font-sans transition-colors ${styles.bg}`}>
-      <div className="flex justify-between items-start mb-4">
+    <div className={`w-full rounded-2xl border p-6 transition-colors ${cfg.bg}`}>
+      {/* Header */}
+      <div className="mb-4 flex items-start justify-between">
         <div>
-          <h3 className="text-xs font-bold text-gray-500 dark:text-[#9AA3B2] uppercase tracking-wider mb-2">Financial Fingerprint</h3>
-          <p className={`text-2xl font-black ${styles.color} flex items-center gap-2`}>
-            {styles.icon} {type}
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-app-muted">
+            Financial Fingerprint
           </p>
+          {/* Icon replaces emoji */}
+          <div className={`flex items-center gap-2 text-xl font-bold ${cfg.color}`}>
+            <Icon className={`h-5 w-5 ${cfg.icon}`} aria-hidden />
+            {type}
+          </div>
         </div>
       </div>
-      
-      <p className="text-sm text-gray-800 dark:text-gray-200 font-medium mb-6 leading-relaxed flex-1">
+
+      <p className="mb-5 flex-1 text-sm font-medium leading-relaxed text-gray-700 dark:text-gray-200">
         "{insight}"
       </p>
 
-      <div className="grid grid-cols-2 gap-4 mt-auto">
-        <div className="bg-white/60 dark:bg-black/25 p-3 rounded-xl border border-white/40 dark:border-white/10 text-center">
-          <p className="text-xs font-semibold text-gray-500 dark:text-[#9AA3B2] mb-1">Savings Rate</p>
-          <p className="text-lg font-bold text-gray-900 dark:text-white">{(savings_rate * 100).toFixed(1)}%</p>
+      {/* Stats row */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-white/60 bg-white/60 p-3 text-center dark:border-white/[0.08] dark:bg-black/20">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-app-muted">
+            Savings Rate
+          </p>
+          <p className="text-lg font-bold text-gray-900 dark:text-white">
+            {(savings_rate * 100).toFixed(1)}%
+          </p>
         </div>
-        <div className="bg-white/60 dark:bg-black/25 p-3 rounded-xl border border-white/40 dark:border-white/10 text-center">
-          <p className="text-xs font-semibold text-gray-500 dark:text-[#9AA3B2] mb-1">Top Category</p>
-          <p className="text-lg font-bold text-gray-900 dark:text-white truncate" title={top_category}>{top_category}</p>
+        <div className="rounded-xl border border-white/60 bg-white/60 p-3 text-center dark:border-white/[0.08] dark:bg-black/20">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-app-muted">
+            Top Category
+          </p>
+          <p className="truncate text-lg font-bold text-gray-900 dark:text-white" title={top_category}>
+            {top_category}
+          </p>
         </div>
       </div>
     </div>

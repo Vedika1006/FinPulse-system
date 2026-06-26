@@ -1,95 +1,105 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 const WhatIfSimulator = ({ income = 0, expense = 0 }) => {
   const [expenseReduction, setExpenseReduction] = useState(0);
-  const [incomeIncrease, setIncomeIncrease] = useState(0);
-
-  const [newIncome, setNewIncome] = useState(income);
-  const [newExpense, setNewExpense] = useState(expense);
-  const [savings, setSavings] = useState(0);
-  const [healthScore, setHealthScore] = useState(0);
+  const [incomeIncrease,   setIncomeIncrease]   = useState(0);
+  const [newIncome,        setNewIncome]         = useState(income);
+  const [newExpense,       setNewExpense]        = useState(expense);
+  const [savings,          setSavings]           = useState(0);
+  const [healthScore,      setHealthScore]       = useState(0);
 
   useEffect(() => {
-    const calculatedIncome = income + incomeIncrease;
-    const calculatedExpense = expense - expenseReduction;
-    const calculatedSavings = calculatedIncome - calculatedExpense;
-
-    setNewIncome(calculatedIncome);
-    setNewExpense(calculatedExpense);
-    setSavings(calculatedSavings);
-
-    if (calculatedIncome > 0) {
-      setHealthScore((calculatedSavings / calculatedIncome) * 100);
-    } else {
-      setHealthScore(0);
-    }
+    const calcIncome  = income + incomeIncrease;
+    const calcExpense = expense - expenseReduction;
+    const calcSavings = calcIncome - calcExpense;
+    setNewIncome(calcIncome);
+    setNewExpense(calcExpense);
+    setSavings(calcSavings);
+    setHealthScore(calcIncome > 0 ? (calcSavings / calcIncome) * 100 : 0);
   }, [income, expense, expenseReduction, incomeIncrease]);
 
-  return (
-    <div className="p-6 bg-white rounded-2xl shadow-lg border border-gray-100 w-full max-w-md mx-auto font-sans dark:bg-[#171A35] dark:border-white/10">
-      <h3 className="text-xl font-bold text-gray-800 mb-6 dark:text-white">What-If Financial Simulator</h3>
+  const sliderClass =
+    "w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-app-card";
 
-      <div className="space-y-6">
+  return (
+    <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-white/[0.06] dark:bg-app-surface">
+      <h3 className="mb-5 text-base font-semibold text-gray-900 dark:text-white">
+        What-If Simulator
+      </h3>
+
+      <div className="space-y-5">
+        {/* Income slider */}
         <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="text-sm font-medium text-gray-600 dark:text-[#9AA3B2]">Increase Income</label>
-            <span className="text-sm font-bold text-green-600">+₹{incomeIncrease.toLocaleString()}</span>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-600 dark:text-app-muted">
+              Increase income
+            </label>
+            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+              +₹{incomeIncrease.toLocaleString("en-IN")}
+            </span>
           </div>
-          <input
-            type="range"
-            min="0"
-            max="20000"
-            step="500"
+          <input type="range" min="0" max="20000" step="500"
             value={incomeIncrease}
             onChange={(e) => setIncomeIncrease(Number(e.target.value))}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-500 dark:bg-gray-700"
+            className={sliderClass}
+            style={{ accentColor: "#10b981" }}
           />
         </div>
 
+        {/* Expense slider */}
         <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="text-sm font-medium text-gray-600 dark:text-[#9AA3B2]">Reduce Expenses</label>
-            <span className="text-sm font-bold text-blue-600">-₹{expenseReduction.toLocaleString()}</span>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-600 dark:text-app-muted">
+              Reduce expenses
+            </label>
+            <span className="text-sm font-semibold text-cyan-600 dark:text-cyan-400">
+              -₹{expenseReduction.toLocaleString("en-IN")}
+            </span>
           </div>
-          <input
-            type="range"
-            min="0"
-            max="10000"
-            step="500"
+          <input type="range" min="0" max="10000" step="500"
             value={expenseReduction}
             onChange={(e) => setExpenseReduction(Number(e.target.value))}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500 dark:bg-gray-700"
+            className={sliderClass}
+            style={{ accentColor: "#06B6D4" }}
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mt-4">
-          <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 dark:bg-[#1E2247] dark:border-white/10">
-            <p className="text-xs font-medium text-gray-500 mb-1 dark:text-[#9AA3B2]">New Income</p>
-            <p className="text-lg font-bold text-gray-800 dark:text-white">₹{newIncome.toLocaleString()}</p>
-          </div>
-          <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 dark:bg-[#1E2247] dark:border-white/10">
-            <p className="text-xs font-medium text-gray-500 mb-1 dark:text-[#9AA3B2]">New Expense</p>
-            <p className="text-lg font-bold text-gray-800 dark:text-white">₹{newExpense.toLocaleString()}</p>
-          </div>
+        {/* Result grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: "New Income",  value: `₹${newIncome.toLocaleString("en-IN")}` },
+            { label: "New Expense", value: `₹${newExpense.toLocaleString("en-IN")}` },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-white/[0.06] dark:bg-app-card">
+              <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">{label}</p>
+              <p className="text-base font-bold text-gray-900 dark:text-white">{value}</p>
+            </div>
+          ))}
         </div>
 
-        <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 flex items-center justify-between dark:bg-indigo-900/20 dark:border-indigo-500/20">
+        {/* Savings highlight */}
+        <div className="flex items-center justify-between rounded-xl border border-indigo-100 bg-indigo-50 p-4 dark:border-indigo-500/20 dark:bg-indigo-900/20">
           <div>
-            <p className="text-sm font-medium text-indigo-800 mb-1 dark:text-indigo-300">New Savings</p>
-            <p className="text-2xl font-black text-indigo-900 dark:text-indigo-100">₹{savings.toLocaleString()}</p>
+            <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400">New Savings</p>
+            <p className="text-2xl font-bold text-indigo-900 dark:text-indigo-100 tabular-nums">
+              ₹{savings.toLocaleString("en-IN")}
+            </p>
           </div>
           <div className="text-right">
-            <p className="text-xs font-medium text-indigo-600 mb-1 dark:text-indigo-400">Health Score</p>
-            <p className="text-xl font-bold text-indigo-900 dark:text-indigo-100">{healthScore.toFixed(1)}%</p>
+            <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400">Health Score</p>
+            <p className="text-xl font-bold text-indigo-900 dark:text-indigo-100 tabular-nums">
+              {healthScore.toFixed(1)}%
+            </p>
           </div>
         </div>
 
-        <div className={`p-4 rounded-xl text-center text-sm font-bold transition-colors ${
-          healthScore > 30 
-            ? 'bg-green-100 text-green-800 border border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-500/30' 
-            : 'bg-orange-100 text-orange-800 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-500/30'
+        {/* Verdict */}
+        <div className={`rounded-xl border p-3 text-center text-sm font-semibold transition-colors ${
+          healthScore > 30
+            ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-900/20 dark:text-emerald-300"
+            : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/20 dark:bg-amber-900/20 dark:text-amber-300"
         }`}>
-          {healthScore > 30 ? "Great financial position" : "You need to improve savings"}
+          {healthScore > 30 ? "Great financial position" : "Improve savings to strengthen score"}
         </div>
       </div>
     </div>
