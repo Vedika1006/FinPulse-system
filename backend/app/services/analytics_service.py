@@ -164,3 +164,128 @@ def _rule_based_fallback(daily_totals: dict, history_payload: list) -> dict:
         "forecast_30": forecast_30,
         "history": history_payload,
     }
+
+def get_isolation_forest_anomalies(db: Session, user_id: int) -> dict:
+    """
+    Isolation Forest anomaly detection on all user expenses.
+    Features: [amount, category_label_encoded].
+    Returns flagged expenses with expense_id so the frontend can badge rows directly.
+    Falls back gracefully if sklearn is absent or data is insufficient (< 10 expenses).
+    """
+    expenses = db.query(Expense).filter(Expense.user_id == user_id).all()
+
+    if len(expenses) < 10:
+        return {
+            "anomalies": [],
+            "method": "insufficient_data",
+            "message": (
+                f"Need at least 10 expenses for anomaly detection "
+                f"(you have {len(expenses)})."
+            ),
+            "total_expenses_analyzed": len(expenses),
+        }
+
+    try:
+        import numpy as np
+        from sklearn.ensemble import IsolationForest
+        from sklearn.preprocessing import LabelEncoder
+        from collections import defaultdict
+
+        amounts = np.array([float(exp.amount) for exp in expenses])
+        categories = [exp.category.lower() for exp in expenses]
+
+        le = LabelEncoder()
+        cat_encoded = le.fit_transform(categories).astype(float)
+
+        X = np.column_stack([amounts, cat_encoded])
+
+        # Contamination: how many we expect to be anomalies.
+        # Clamp between 5–15 % so we're not too noisy on small datasets.
+        contamination = float(min(0.15, max(0.05, 8.0 / len(expenses))))
+
+        clf = IsolationForest(
+            n_estimators=100,
+            contamination=contamination,
+            random_state=42,
+        )
+        clf.fit(X)
+
+        preds = clf.predict(X)           # -1 = anomaly, 1 = normal
+        scores = clf.decision_function(X)  # more negative = more anomalous
+
+        # Per-category mean for human-readable reason strings
+        cat_amounts: dict = defaultdict(list)
+        for exp in expenses:
+            cat_amounts[exp.category.lower()].append(float(exp.amount))
+
+        cat_stats = {
+            cat: sum(vals) / len(vals)
+            for cat, vals in cat_amounts.items()
+        }
+
+        anomalies = []
+        for i, exp in enumerate(expenses):
+            if preds[i] != -1:
+                continue
+
+            score = float(scores[i])
+            cat = exp.category.lower()
+            mean = cat_stats.get(cat, float(exp.amount))
+            ratio = float(exp.amount) / mean if mean > 0 else 1.0
+
+            # Severity thresholds on decision_function output.
+            # decision_function < 0 means anomaly; the more negative, the worse.
+            if score < -0.15:
+                severity = "high"
+            elif score < -0.05:
+                severity = "medium"
+            else:
+                severity = "low"
+
+            if ratio >= 2.0:
+                reason = (
+                    f"₹{exp.amount:.0f} is {ratio:.1f}x your usual "
+                    f"₹{mean:.0f} in {exp.category}."
+                )
+            elif ratio <= 0.3:
+                reason = (
+                    f"₹{exp.amount:.0f} is unusually low for {exp.category} "
+                    f"(typical: ₹{mean:.0f})."
+                )
+            else:
+                reason = (
+                    f"Unusual pattern in {exp.category} — "
+                    f"atypical amount or frequency for your history."
+                )
+
+            expense_date = _expense_day(exp)
+
+            anomalies.append({
+                "expense_id": exp.id,
+                "amount": float(exp.amount),
+                "category": exp.category,
+                "date": expense_date.strftime("%Y-%m-%d"),
+                "reason": reason,
+                "severity": severity,
+                "anomaly_score": round(score, 4),
+            })
+
+        severity_order = {"high": 0, "medium": 1, "low": 2}
+        anomalies.sort(
+            key=lambda x: (severity_order.get(x["severity"], 3), x["anomaly_score"])
+        )
+
+        return {
+            "anomalies": anomalies,
+            "method": "isolation_forest",
+            "total_expenses_analyzed": len(expenses),
+        }
+
+    except Exception as e:
+        print(f"[IsolationForest] Error: {e}")
+        return {
+            "anomalies": [],
+            "method": "error",
+            "message": str(e),
+            "total_expenses_analyzed": len(expenses),
+        }
