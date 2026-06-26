@@ -1,5 +1,5 @@
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "backend/Dockerfile"
+builder = "NIXPACKS"
 
-# Do not set startCommand — backend/Dockerfile + start.sh handle PORT.
+[deploy]
+startCommand = "sh start.sh"

@@ -1,6 +1,5 @@
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+builder = "NIXPACKS"
 
-# Do not set startCommand here — it overrides the Dockerfile CMD and Railway
-# may not expand $PORT without a shell. start.sh handles PORT correctly.
+[deploy]
+startCommand = "sh start.sh"
