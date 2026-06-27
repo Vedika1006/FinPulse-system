@@ -41,6 +41,15 @@ const AnomalyBadge = ({ severity, reason }) => {
   );
 };
 
+// today in YYYY-MM-DD (local time) — used for default value & max constraint
+const getTodayStr = () => {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth() + 1).padStart(2, "0");
+  const dd   = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 const Expenses = () => {
   const { showToast } = useToast();
   const { currency } = useTheme();
@@ -66,7 +75,7 @@ const Expenses = () => {
   const [form, setForm] = useState({
     category: "",
     amount: "",
-    date: "",
+    date: getTodayStr(),   // default to today
     description: "",
   });
   const [expenseToDelete, setExpenseToDelete] = useState(null);
@@ -261,7 +270,10 @@ const Expenses = () => {
           </button>
           <button
             type="button"
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              setForm({ category: "", amount: "", date: getTodayStr(), description: "" });
+              setShowForm(true);
+            }}
             className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 dark:shadow-glow-sm"
           >
             + Add expense
@@ -377,8 +389,8 @@ const Expenses = () => {
                       </td>
 
                       <td className="px-6 py-3 text-gray-600 dark:text-app-muted">
-                        {exp.created_at
-                          ? new Date(exp.created_at).toLocaleDateString()
+                        {(exp.date || exp.created_at)
+                          ? new Date(exp.date || exp.created_at).toLocaleDateString()
                           : "—"}
                       </td>
 
@@ -505,6 +517,7 @@ const Expenses = () => {
                 name="date"
                 value={form.date}
                 onChange={handleChange}
+                max={getTodayStr()}
                 className={inputClass}
                 required
               />

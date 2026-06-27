@@ -71,7 +71,14 @@ class ExpenseCreate(BaseModel):
     @field_validator("date")
     @classmethod
     def validate_date(cls, value: Optional[datetime]) -> Optional[datetime]:
-        # If provided, it must be a valid datetime (pydantic already parses); keep as-is.
+        if value is None:
+            return value
+        # Strip tzinfo for comparison; treat submitted date as local/naive UTC
+        naive = value.replace(tzinfo=None)
+        # Allow dates up to and including today (compare date only, not time)
+        today = datetime.utcnow().date()
+        if naive.date() > today:
+            raise ValueError("Expense date cannot be in the future")
         return value
 
 
