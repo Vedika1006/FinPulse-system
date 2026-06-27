@@ -186,71 +186,85 @@ export function AIFinancialInsights({
         ) : (
           /* ── Full insights when data is complete ──── */
           <>
-            {memory?.frequent_category ? (
-              <p className="text-xs font-medium text-gray-700 dark:text-white/80">
-                Based on your past behavior: {memory.habit} in{" "}
-                <span className="font-semibold">{memory.frequent_category}</span>.
-              </p>
-            ) : null}
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* ── LEFT: Health score + reasons ──────── */}
+              <div className="space-y-4">
+                {memory?.frequent_category ? (
+                  <p className="text-xs font-medium text-gray-700 dark:text-white/80">
+                    Based on your past behavior: {memory.habit} in{" "}
+                    <span className="font-semibold">{memory.frequent_category}</span>.
+                  </p>
+                ) : null}
 
-            <div className="space-y-4">
-              <ScoreCard score={score} />
+                <ScoreCard score={score} />
 
-              {savingsRate != null ? (
-                <p className="text-xs font-medium text-gray-700 dark:text-white/80">
-                  Savings rate:{" "}
-                  <span className="font-semibold">{savingsRate.toFixed(1)}%</span>
-                </p>
-              ) : null}
+                {savingsRate != null ? (
+                  <p className="text-xs font-medium text-gray-700 dark:text-white/80">
+                    Savings rate:{" "}
+                    <span className="font-semibold">{savingsRate.toFixed(1)}%</span>
+                  </p>
+                ) : null}
 
-              {reasons.length > 0 ? (
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-white/[0.06] dark:bg-white/5">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white">Why this score?</p>
-                  <div className="mt-3 space-y-2">
-                    {reasons.slice(0, 4).map((r, i) => {
-                      const variant = getReasonVariant(r);
-                      const styles = {
-                        success: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/20",
-                        warning: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300 border-amber-200 dark:border-amber-500/20",
-                        danger:  "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300 border-red-200 dark:border-red-500/20",
-                      }[variant];
-                      const dotStyles = {
-                        success: "bg-emerald-500",
-                        warning: "bg-amber-500",
-                        danger:  "bg-red-500",
-                      }[variant];
-                      return (
-                        <div key={i} className={`flex items-start gap-2.5 rounded-xl border px-3 py-2 text-sm ${styles}`}>
-                          <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${dotStyles}`} aria-hidden />
-                          <span className="font-medium leading-relaxed">{r}</span>
-                        </div>
-                      );
-                    })}
+                {reasons.length > 0 ? (
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-white/[0.06] dark:bg-white/5">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">Why this score?</p>
+                    <div className="mt-3 space-y-2">
+                      {reasons.slice(0, 4).map((r, i) => {
+                        const variant = getReasonVariant(r);
+                        const styles = {
+                          success: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/20",
+                          warning: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300 border-amber-200 dark:border-amber-500/20",
+                          danger:  "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300 border-red-200 dark:border-red-500/20",
+                        }[variant];
+                        const dotStyles = {
+                          success: "bg-emerald-500",
+                          warning: "bg-amber-500",
+                          danger:  "bg-red-500",
+                        }[variant];
+                        return (
+                          <div key={i} className={`flex items-start gap-2.5 rounded-xl border px-3 py-2 text-sm ${styles}`}>
+                            <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${dotStyles}`} aria-hidden />
+                            <span className="font-medium leading-relaxed">{r}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ) : null}
-            </div>
+                ) : null}
+              </div>
 
-            {loading ? (
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600 dark:text-app-muted">Generating insights…</p>
-                <InsightGridSkeleton />
+              {/* ── RIGHT: 4 insight blocks stacked vertically ── */}
+              <div className="space-y-4">
+                {loading ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-600 dark:text-app-muted">Generating insights…</p>
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-white/[0.06] dark:bg-app-card">
+                        <Skeleton className="mb-3 h-3 w-20" />
+                        <Skeleton className="mb-2 h-3 w-full" />
+                        <Skeleton className="h-3 w-4/5" />
+                      </div>
+                    ))}
+                  </div>
+                ) : insights.length === 0 ? (
+                  <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-10 text-center dark:border-white/[0.10] dark:bg-white/[0.04]">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-app-subtle">No insights yet</p>
+                      <p className="mt-1 text-xs text-gray-600 dark:text-app-muted">
+                        Add more expenses to unlock AI-powered spending insights.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <InsightBlock title="Insight" value={parsed.insight} type="insight" />
+                    <InsightBlock title="Risk"    value={parsed.risk}    type="risk" />
+                    <InsightBlock title="Reason"  value={parsed.reason}  type="pattern" />
+                    <InsightBlock title="Action"  value={parsed.action}  type="suggestion" />
+                  </>
+                )}
               </div>
-            ) : insights.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-10 text-center dark:border-white/[0.10] dark:bg-white/[0.04]">
-                <p className="text-sm font-medium text-gray-900 dark:text-app-subtle">No insights yet</p>
-                <p className="mt-1 text-xs text-gray-600 dark:text-app-muted">
-                  Add more expenses to unlock AI-powered spending insights.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <InsightBlock title="Insight" value={parsed.insight} type="insight" />
-                <InsightBlock title="Risk"    value={parsed.risk}    type="risk" />
-                <InsightBlock title="Reason"  value={parsed.reason}  type="pattern" />
-                <InsightBlock title="Action"  value={parsed.action}  type="suggestion" />
-              </div>
-            )}
+            </div>
           </>
         )}
       </CardBody>
