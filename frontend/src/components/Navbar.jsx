@@ -52,27 +52,29 @@ const Navbar = ({ toggleSidebar, alerts }) => {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {/* Theme toggle — icon only */}
           <button
             type="button"
             onClick={toggleTheme}
-            className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-blue-600 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-app-subtle dark:hover:border-app-accent/30 dark:hover:text-white"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-gray-600 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-app-subtle dark:hover:border-app-accent/30 dark:hover:text-white"
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           >
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            {theme === "dark" ? "Light" : "Dark"}
           </button>
+
+          {/* Settings — icon only (preserved label for screen readers) */}
           <Link
             to="/settings"
-            className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-blue-600 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-app-subtle dark:hover:border-app-accent/30 dark:hover:text-white"
+            title="Settings"
+            aria-label="Settings"
+            className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-gray-600 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-app-subtle dark:hover:border-app-accent/30 dark:hover:text-white"
           >
             <Settings className="h-4 w-4" />
-            Settings
           </Link>
+
+          {/* Notification bell */}
           <NotificationBell alerts={alerts} />
-          <div className="hidden h-9 w-px bg-gray-200 dark:bg-white/10 sm:block" aria-hidden />
-          <div className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-left shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-inner dark:hover:border-app-accent/30">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-app-muted">Workspace</p>
-            <p className="text-xs font-semibold text-gray-900 dark:text-app-subtle">Finance</p>
-          </div>
         </div>
       </div>
     </header>
