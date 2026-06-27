@@ -158,22 +158,6 @@ export default function Analytics() {
     return Array.isArray(raw) ? raw : [];
   }, [insightPayload]);
 
-  const nextActions = useMemo(() => {
-    const items = [];
-    for (const line of insightsList) {
-      const acts = mapInsightToActions(line, { month });
-      for (const a of acts) items.push({ ...a, source: line });
-    }
-    const seen = new Set();
-    return items
-      .filter(({ label, to }) => {
-        const k = `${label}|${to}`;
-        if (seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      })
-      .slice(0, 4);
-  }, [insightsList, month]);
 
   const recurring = useMemo(() => {
     const rows   = Array.isArray(allExpenses) ? allExpenses : [];
@@ -249,9 +233,6 @@ export default function Analytics() {
     }
   };
 
-  // ── Shared button helpers ───────────────────────────────
-  const btnPrimary   = "rounded-xl bg-cyan-500 px-4 py-2 text-xs font-semibold text-[#06080F] shadow-sm transition hover:bg-cyan-400";
-  const btnSecondary = "rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-900 shadow-sm transition hover:bg-gray-50 dark:border-white/[0.08] dark:bg-transparent dark:text-app-subtle dark:hover:bg-white/5";
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -355,50 +336,15 @@ export default function Analytics() {
           )}
 
           {/* ══════════════════════════════════════════════
-              AI INSIGHTS + NEXT ACTIONS GRID
+              AI INSIGHTS (full width)
           ══════════════════════════════════════════════ */}
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <AIFinancialInsights
-                insights={insightsList}
-                loading={false}
-                health={health}
-                hasIncome={hasIncome}
-                hasBudgets={hasBudgets}
-              />
-            </div>
-
-            {/* Next actions panel */}
-            <Card hover>
-              <CardHeader title="What should you do next?" subtitle="Quick actions based on your data" />
-              <CardBody className="space-y-3 pt-0">
-                {nextActions.length === 0 ? (
-                  <p className="text-sm text-gray-500 dark:text-app-muted">
-                    Add expenses and budgets to unlock next best actions.
-                  </p>
-                ) : (
-                  <div className="space-y-2.5">
-                    {nextActions.map((a) => (
-                      <div
-                        key={`${a.label}-${a.to}`}
-                        className="rounded-xl border border-gray-100 bg-gray-50 p-3.5 dark:border-white/[0.06] dark:bg-app-card"
-                      >
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{a.label}</p>
-                        <div className="mt-2.5 flex flex-wrap gap-2">
-                          <button type="button" onClick={() => navigate(a.to)} className={btnPrimary}>
-                            Do it now
-                          </button>
-                          <button type="button" onClick={() => navigate("/expenses")} className={btnSecondary}>
-                            View expenses
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardBody>
-            </Card>
-          </div>
+          <AIFinancialInsights
+            insights={insightsList}
+            loading={false}
+            health={health}
+            hasIncome={hasIncome}
+            hasBudgets={hasBudgets}
+          />
 
           {/* Recurring expense detection */}
           <Card>
