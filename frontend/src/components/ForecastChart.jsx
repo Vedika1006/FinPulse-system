@@ -7,20 +7,12 @@ import API from "../api/axios";
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
-
-  // The confidence band Area stores [yhat_lower, yhat_upper] as its value.
-  // Number([lower, upper]) = NaN. Filter it out — the shaded area is
-  // self-explanatory visually and doesn't need a tooltip entry.
-  const items = payload.filter((p) => p.dataKey !== "band");
-  if (!items.length) return null;
-
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-3 text-sm shadow-lg dark:border-white/[0.08] dark:bg-app-surface dark:text-white">
-      <p className="mb-1.5 font-semibold text-gray-700 dark:text-app-subtle">{label}</p>
-      {items.map((p) => (
+      <p className="mb-1 font-semibold text-gray-700 dark:text-app-subtle">{label}</p>
+      {payload.map((p) => (
         <p key={p.name} style={{ color: p.color }}>
-          {p.dataKey === "actual" ? "Actual spend" : "Forecast"}:{" "}
-          ₹{Number(p.value).toLocaleString("en-IN")}
+          {p.name}: ₹{Number(p.value).toLocaleString("en-IN")}
         </p>
       ))}
     </div>
