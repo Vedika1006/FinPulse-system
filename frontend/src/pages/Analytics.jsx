@@ -233,11 +233,6 @@ export default function Analytics() {
     }
   };
 
-  // ── Shared button helpers (used by recurring section) ────────────
-  const btnPrimary   = "rounded-xl bg-cyan-500 px-4 py-2 text-xs font-semibold text-[#06080F] shadow-sm transition hover:bg-cyan-400";
-  const btnSecondary = "rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-900 shadow-sm transition hover:bg-gray-50 dark:border-white/[0.08] dark:bg-transparent dark:text-app-subtle dark:hover:bg-white/5";
-
-
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -340,72 +335,16 @@ export default function Analytics() {
             </div>
           )}
 
-          {/* ════════════════════════════════════════════
-              HEALTH SCORE HERO STRIP
-              Shows health score, savings rate, budget status,
-              and stability as 4 compact stat pills.
-          ════════════════════════════════════════════ */}
-          {health && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {[
-                {
-                  label: "Health Score",
-                  value: `${Math.round(Number(health.score ?? health.health_score ?? 0))}/100`,
-                  color:
-                    Number(health.score) >= 80 ? "text-emerald-600 dark:text-emerald-400" :
-                    Number(health.score) >= 60 ? "text-cyan-600 dark:text-cyan-400" :
-                    Number(health.score) >= 40 ? "text-amber-600 dark:text-amber-400" :
-                    "text-red-600 dark:text-red-400",
-                },
-                {
-                  label: "Savings Rate",
-                  value: `${Number(health.savings_rate ?? 0).toFixed(1)}%`,
-                  color: Number(health.savings_rate) >= 20
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-red-600 dark:text-red-400",
-                },
-                {
-                  label: "Budget",
-                  value: Number(health.budget_score) >= 100 ? "Within plan" : "Over budget",
-                  color: Number(health.budget_score) >= 100
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-red-600 dark:text-red-400",
-                },
-                {
-                  label: "Stability",
-                  value:
-                    Number(health.stability_score) >= 80 ? "Stable" :
-                    Number(health.stability_score) >= 60 ? "Moderate" : "Volatile",
-                  color:
-                    Number(health.stability_score) >= 80 ? "text-emerald-600 dark:text-emerald-400" :
-                    Number(health.stability_score) >= 60 ? "text-amber-600 dark:text-amber-400" :
-                    "text-red-600 dark:text-red-400",
-                },
-              ].map(({ label, value, color }) => (
-                <div
-                  key={label}
-                  className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-white/[0.06] dark:bg-app-surface"
-                >
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">
-                    {label}
-                  </p>
-                  <p className={`mt-1.5 text-lg font-semibold tabular-nums ${color}`}>{value}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* ════════════════════════════════════════════
-              AI INSIGHTS — compact mode skips ScoreCard
-              and reasons (shown in hero strip above)
-          ════════════════════════════════════════════ */}
+          {/* ══════════════════════════════════════════════
+              AI INSIGHTS (full width)
+          ══════════════════════════════════════════════ */}
           <AIFinancialInsights
             insights={insightsList}
             loading={false}
             health={health}
-            compact={true}
+            hasIncome={hasIncome}
+            hasBudgets={hasBudgets}
           />
-
 
           {/* Recurring expense detection */}
           <Card>
@@ -448,19 +387,8 @@ export default function Analytics() {
             <Card>
               <CardHeader title="Income over time" subtitle="Your earning trends" />
               <CardBody className="h-72 pt-0 dark:bg-transparent">
-                {incomeChartData.length < 2 ? (
-                  <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 dark:border-white/[0.06] dark:bg-app-card">
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-gray-700 dark:text-app-subtle">
-                        {incomeChartData.length === 0 ? "No data yet" : "Not enough history"}
-                      </p>
-                      <p className="mt-1 text-xs text-gray-400 dark:text-app-muted">
-                        {incomeChartData.length === 0
-                          ? "Record your income to see your earnings trajectory."
-                          : "Keep tracking — a trend needs at least 2 months of data."}
-                      </p>
-                    </div>
-                  </div>
+                {incomeChartData.length === 0 ? (
+                  <EmptyState icon={LineChartIcon} title="No data yet" description="Record your income to see your earnings trajectory." />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={incomeChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -491,19 +419,8 @@ export default function Analytics() {
                 }
               />
               <CardBody className="h-72 pt-0 dark:bg-transparent">
-                {trendData.length < 2 ? (
-                  <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 dark:border-white/[0.06] dark:bg-app-card">
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-gray-700 dark:text-app-subtle">
-                        {trendData.length === 0 ? "No data yet" : "Not enough history"}
-                      </p>
-                      <p className="mt-1 text-xs text-gray-400 dark:text-app-muted">
-                        {trendData.length === 0
-                          ? "Add expenses to see your monthly trend."
-                          : "Keep tracking — a trend needs at least 2 months of data."}
-                      </p>
-                    </div>
-                  </div>
+                {trendData.length === 0 ? (
+                  <EmptyState icon={LineChartIcon} title="No data yet" description="Add some expenses first to see your financial insights." />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={trendData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
