@@ -7,10 +7,11 @@ import API from "../api/axios";
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
+  const filtered = payload.filter(entry => entry.dataKey !== "band" && entry.name !== "Confidence Band");
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-3 text-sm shadow-lg dark:border-white/[0.08] dark:bg-app-surface dark:text-white">
       <p className="mb-1 font-semibold text-gray-700 dark:text-app-subtle">{label}</p>
-      {payload.map((p) => (
+      {filtered.map((p) => (
         <p key={p.name} style={{ color: p.color }}>
           {p.name}: ₹{Number(p.value).toLocaleString("en-IN")}
         </p>

@@ -4,28 +4,28 @@ import API from "../api/axios";
 
 const BEHAVIOR_CONFIG = {
   Saver: {
-    Icon:  TrendingUp,
-    color: "text-emerald-700 dark:text-emerald-300",
-    bg:    "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-500/20",
-    icon:  "text-emerald-600 dark:text-emerald-400",
+    Icon:   TrendingUp,
+    badge:  "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
+    accent: "border-l-emerald-500",
+    stat:   "text-emerald-600 dark:text-emerald-400",
   },
   "Impulse Spender": {
-    Icon:  Zap,
-    color: "text-red-700 dark:text-red-300",
-    bg:    "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-500/20",
-    icon:  "text-red-600 dark:text-red-400",
+    Icon:   Zap,
+    badge:  "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300",
+    accent: "border-l-orange-500",
+    stat:   "text-orange-600 dark:text-orange-400",
   },
   "Lifestyle Creep": {
-    Icon:  TrendingUp,
-    color: "text-amber-700 dark:text-amber-300",
-    bg:    "bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-500/20",
-    icon:  "text-amber-600 dark:text-amber-400",
+    Icon:   TrendingUp,
+    badge:  "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+    accent: "border-l-amber-500",
+    stat:   "text-amber-600 dark:text-amber-400",
   },
   Balanced: {
-    Icon:  Scale,
-    color: "text-cyan-700 dark:text-cyan-300",
-    bg:    "bg-cyan-50 border-cyan-200 dark:bg-cyan-900/20 dark:border-cyan-500/20",
-    icon:  "text-cyan-600 dark:text-cyan-400",
+    Icon:   Scale,
+    badge:  "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300",
+    accent: "border-l-cyan-500",
+    stat:   "text-cyan-600 dark:text-cyan-400",
   },
 };
 
@@ -42,7 +42,15 @@ const BehaviorCard = () => {
 
   if (loading) {
     return (
-      <div className="h-48 w-full animate-pulse rounded-2xl border border-gray-200 bg-white dark:border-white/[0.06] dark:bg-app-surface" />
+      <div className="w-full animate-pulse rounded-2xl border border-gray-100 bg-white p-4 dark:border-white/[0.05] dark:bg-app-card">
+        <div className="h-3 w-24 rounded bg-gray-200 dark:bg-white/10" />
+        <div className="mt-3 h-8 w-36 rounded-full bg-gray-200 dark:bg-white/10" />
+        <div className="mt-3 h-12 w-full rounded bg-gray-200 dark:bg-white/10" />
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="h-16 rounded-xl bg-gray-100 dark:bg-white/5" />
+          <div className="h-16 rounded-xl bg-gray-100 dark:bg-white/5" />
+        </div>
+      </div>
     );
   }
 
@@ -53,40 +61,35 @@ const BehaviorCard = () => {
   const Icon = cfg.Icon;
 
   return (
-    <div className={`w-full rounded-2xl border p-6 transition-colors ${cfg.bg}`}>
-      {/* Header */}
-      <div className="mb-4 flex items-start justify-between">
-        <div>
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-app-muted">
-            Financial Fingerprint
-          </p>
-          {/* Icon replaces emoji */}
-          <div className={`flex items-center gap-2 text-xl font-bold ${cfg.color}`}>
-            <Icon className={`h-5 w-5 ${cfg.icon}`} aria-hidden />
-            {type}
-          </div>
-        </div>
+    <div className={`w-full rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-white/[0.05] dark:bg-app-card border-l-4 ${cfg.accent}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-app-muted">
+        Financial Fingerprint
+      </p>
+
+      {/* Prominent behavior type badge */}
+      <div className={`mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-bold ${cfg.badge}`}>
+        <Icon className="h-4 w-4 flex-shrink-0" aria-hidden />
+        {type}
       </div>
 
-      <p className="mb-5 flex-1 text-sm font-medium leading-relaxed text-gray-700 dark:text-gray-200">
+      <p className="mt-3 text-sm font-medium leading-relaxed text-gray-600 dark:text-app-subtle">
         "{insight}"
       </p>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-white/60 bg-white/60 p-3 text-center dark:border-white/[0.08] dark:bg-black/20">
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center dark:border-white/[0.04] dark:bg-app-surface">
           <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-app-muted">
             Savings Rate
           </p>
-          <p className="text-lg font-bold text-gray-900 dark:text-white">
+          <p className={`font-mono text-xl font-bold ${cfg.stat}`}>
             {(savings_rate * 100).toFixed(1)}%
           </p>
         </div>
-        <div className="rounded-xl border border-white/60 bg-white/60 p-3 text-center dark:border-white/[0.08] dark:bg-black/20">
+        <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center dark:border-white/[0.04] dark:bg-app-surface">
           <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-app-muted">
             Top Category
           </p>
-          <p className="truncate text-lg font-bold text-gray-900 dark:text-white" title={top_category}>
+          <p className="truncate font-mono text-xl font-bold text-gray-900 dark:text-app-ink" title={top_category}>
             {top_category}
           </p>
         </div>

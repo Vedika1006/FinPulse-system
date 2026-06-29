@@ -5,6 +5,7 @@ import Budgets from "./pages/Budgets";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
+import LandingPage from "./pages/LandingPage";
 import Layout from "./components/Layout";
 import { ToastProvider } from "./components/ToastProvider";
 import { hasValidAuthSession } from "./utils/auth";
@@ -23,13 +24,17 @@ function App() {
             {isAuthenticated ? (
               <Route path="/" element={<Layout />}>
                 <Route index element={<Dashboard />} />
-                <Route path="expenses" element={<Expenses />} />
-                <Route path="budgets" element={<Budgets />} />
+                <Route path="expenses"  element={<Expenses />}  />
+                <Route path="budgets"   element={<Budgets />}   />
                 <Route path="analytics" element={<Analytics />} />
-                <Route path="settings" element={<Settings />} />
+                <Route path="settings"  element={<Settings />}  />
               </Route>
             ) : (
-              <Route path="*" element={<Navigate to="/login" />} />
+              <Route path="/" element={<LandingPage />} />
+            )}
+
+            {!isAuthenticated && (
+              <Route path="*" element={<Navigate to="/" replace />} />
             )}
           </Routes>
         </ErrorBoundary>
