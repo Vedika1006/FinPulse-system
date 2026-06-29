@@ -237,20 +237,18 @@ export default function Analytics() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
 
-      {/* Page header */}
+      {/* Month picker + subtitle */}
       <div className="flex flex-col gap-4 text-left sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Analytics</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-app-muted">
+          <p className="text-sm text-gray-500 dark:text-app-muted">
             {displayName ? `${displayName}, here's what changed in your money this month.` : "Your financial trends and health at a glance."}
           </p>
           {memory?.frequent_category && (
-            <p className="mt-1.5 text-xs font-medium text-gray-600 dark:text-app-subtle">
+            <p className="mt-1 text-xs font-medium text-gray-600 dark:text-app-subtle">
               Pattern: {memory.habit} in <span className="font-semibold">{memory.frequent_category}</span>
             </p>
           )}
         </div>
-        {/* Month picker — only useful once there's data */}
         {hasAnyData && (
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-app-subtle">
             <span>Month</span>
@@ -346,15 +344,11 @@ export default function Analytics() {
             hasBudgets={hasBudgets}
           />
 
-          {/* Recurring expense detection */}
-          <Card>
-            <CardHeader title="Recurring expense detection" subtitle="Repeated charges spotted across months" />
-            <CardBody className="pt-0">
-              {recurring.length === 0 ? (
-                <p className="text-sm text-gray-500 dark:text-app-muted">
-                  No recurring patterns detected yet — need repeated transactions across months.
-                </p>
-              ) : (
+          {/* Recurring expense detection — hidden when no patterns found */}
+          {recurring.length > 0 && (
+            <Card>
+              <CardHeader title="Recurring expense detection" subtitle="Repeated charges spotted across months" />
+              <CardBody className="pt-0">
                 <div className="grid gap-3 md:grid-cols-2">
                   {recurring.map((r) => (
                     <div
@@ -366,19 +360,27 @@ export default function Analytics() {
                         ~{formatINR(r.amount)} · {r.occurrences} times · {r.months} months
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <button type="button" onClick={() => navigate("/expenses")} className={btnSecondary}>
+                        <button
+                          type="button"
+                          onClick={() => navigate("/expenses")}
+                          className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-white/[0.08] dark:bg-app-surface dark:text-app-muted dark:hover:bg-white/5"
+                        >
                           Review
                         </button>
-                        <button type="button" onClick={() => navigate("/budgets")} className={btnPrimary}>
+                        <button
+                          type="button"
+                          onClick={() => navigate("/budgets")}
+                          className="rounded-xl bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-[#06080F] shadow-sm transition hover:bg-cyan-400"
+                        >
                           Set budget
                         </button>
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
-            </CardBody>
-          </Card>
+              </CardBody>
+            </Card>
+          )}
 
           {/* Charts row */}
           <div className="grid gap-6 lg:grid-cols-2">
@@ -387,8 +389,12 @@ export default function Analytics() {
             <Card>
               <CardHeader title="Income over time" subtitle="Your earning trends" />
               <CardBody className="h-72 pt-0 dark:bg-transparent">
-                {incomeChartData.length === 0 ? (
-                  <EmptyState icon={LineChartIcon} title="No data yet" description="Record your income to see your earnings trajectory." />
+                {incomeChartData.length < 2 ? (
+                  <div className="flex h-full items-center justify-center">
+                    <p className="text-sm text-gray-400 dark:text-app-muted">
+                      Add income for 2+ months to see your earning trend
+                    </p>
+                  </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={incomeChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
