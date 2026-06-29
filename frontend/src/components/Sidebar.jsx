@@ -6,15 +6,81 @@ import {
   BarChart3,
   Settings,
   Zap,
+  Upload,
+  CalendarDays,
+  RefreshCcw,
+  Inbox,
 } from "lucide-react";
 
-const navItems = [
-  { to: "/",          label: "Dashboard", Icon: LayoutDashboard, end: true  },
-  { to: "/expenses",  label: "Expenses",  Icon: Wallet,          end: false },
-  { to: "/budgets",   label: "Budgets",   Icon: PiggyBank,       end: false },
-  { to: "/analytics", label: "Analytics", Icon: BarChart3,       end: false },
-  { to: "/settings",  label: "Settings",  Icon: Settings,        end: false },
-];
+const NewBadge = () => (
+  <span
+    style={{
+      fontSize: "9px",
+      padding: "1px 6px",
+      borderRadius: "999px",
+      background: "rgba(6,182,212,0.15)",
+      color: "#06B6D4",
+      fontWeight: 600,
+      lineHeight: "14px",
+      flexShrink: 0,
+    }}
+  >
+    New
+  </span>
+);
+
+const GroupLabel = ({ children }) => (
+  <p
+    className="px-3 text-app-muted"
+    style={{
+      fontSize: "10px",
+      fontWeight: 500,
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+      marginTop: "20px",
+      marginBottom: "6px",
+    }}
+  >
+    {children}
+  </p>
+);
+
+const NavItem = ({ to, label, Icon, end = false, badge = false, setSidebarOpen }) => (
+  <NavLink
+    to={to}
+    end={end}
+    onClick={() => setSidebarOpen && setSidebarOpen(false)}
+    className={({ isActive }) =>
+      `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
+        isActive
+          ? "bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400"
+          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-app-muted dark:hover:bg-white/5 dark:hover:text-white"
+      }`
+    }
+  >
+    {({ isActive }) => (
+      <>
+        <Icon
+          className={`h-[17px] w-[17px] flex-shrink-0 transition-colors ${
+            isActive
+              ? "text-cyan-600 dark:text-cyan-400"
+              : "text-gray-400 group-hover:text-gray-600 dark:text-app-muted dark:group-hover:text-app-subtle"
+          }`}
+          strokeWidth={2}
+          aria-hidden
+        />
+        <span className="flex-1">{label}</span>
+        {badge && <NewBadge />}
+        {isActive && (
+          <span
+            className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-cyan-500 dark:bg-cyan-400 dark:shadow-[0_0_8px_rgba(6,182,212,0.8)]"
+            aria-hidden
+          />
+        )}
+      </>
+    )}
+  </NavLink>
+);
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   return (
@@ -39,46 +105,34 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
       </div>
 
       {/* ── Nav ── */}
-      <nav className="flex flex-1 flex-col gap-0.5 p-3 pt-4" aria-label="Main">
-        {navItems.map(({ to, label, Icon, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            onClick={() => setSidebarOpen && setSidebarOpen(false)}
-            className={({ isActive }) =>
-              `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
-                isActive
-                  ? "bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-app-muted dark:hover:bg-white/5 dark:hover:text-white"
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <Icon
-                  className={`h-[17px] w-[17px] flex-shrink-0 transition-colors ${
-                    isActive
-                      ? "text-cyan-600 dark:text-cyan-400"
-                      : "text-gray-400 group-hover:text-gray-600 dark:text-app-muted dark:group-hover:text-app-subtle"
-                  }`}
-                  strokeWidth={2}
-                  aria-hidden
-                />
-                <span className="flex-1">{label}</span>
-                {isActive && (
-                  <span
-                    className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-cyan-500 dark:bg-cyan-400 dark:shadow-[0_0_8px_rgba(6,182,212,0.8)]"
-                    aria-hidden
-                  />
-                )}
-              </>
-            )}
-          </NavLink>
-        ))}
+      <nav className="flex flex-1 flex-col overflow-y-auto p-3 pt-4" aria-label="Main">
+
+        {/* [unlabelled] */}
+        <NavItem to="/"          label="Dashboard"      Icon={LayoutDashboard} end setSidebarOpen={setSidebarOpen} />
+
+        {/* MONEY */}
+        <GroupLabel>Money</GroupLabel>
+        <NavItem to="/expenses"     label="Expenses"        Icon={Wallet}        setSidebarOpen={setSidebarOpen} />
+        <NavItem to="/money/import" label="Income & Import" Icon={Upload}        badge setSidebarOpen={setSidebarOpen} />
+
+        {/* PLAN */}
+        <GroupLabel>Plan</GroupLabel>
+        <NavItem to="/budgets"       label="Budgets & Goals"     Icon={PiggyBank}    setSidebarOpen={setSidebarOpen} />
+        <NavItem to="/calendar"      label="Cashflow Calendar"   Icon={CalendarDays} badge setSidebarOpen={setSidebarOpen} />
+        <NavItem to="/subscriptions" label="Subscriptions"       Icon={RefreshCcw}   badge setSidebarOpen={setSidebarOpen} />
+
+        {/* INSIGHTS */}
+        <GroupLabel>Insights</GroupLabel>
+        <NavItem to="/analytics" label="Analytics"       Icon={BarChart3} setSidebarOpen={setSidebarOpen} />
+        <NavItem to="/inbox"     label="Financial Inbox" Icon={Inbox}     badge setSidebarOpen={setSidebarOpen} />
+
+        {/* Settings pinned before bottom ── pushed down via mt-auto */}
+        <div className="mt-auto pt-4">
+          <NavItem to="/settings" label="Settings" Icon={Settings} setSidebarOpen={setSidebarOpen} />
+        </div>
       </nav>
 
-      {/* ── Bottom badge ── */}
+      {/* ── AI badge ── */}
       <div className="border-t border-gray-200 p-4 dark:border-white/[0.06]">
         <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-white/[0.06] dark:bg-white/[0.03]">
           <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-cyan-500/15">
