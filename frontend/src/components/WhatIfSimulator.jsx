@@ -19,22 +19,22 @@ const WhatIfSimulator = ({ income = 0, expense = 0 }) => {
   }, [income, expense, expenseReduction, incomeIncrease]);
 
   const sliderClass =
-    "w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-app-card";
+    "w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-app-surface";
 
   return (
-    <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-white/[0.06] dark:bg-app-surface">
-      <h3 className="mb-5 text-base font-semibold text-gray-900 dark:text-white">
+    <div className="w-full rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-white/[0.05] dark:bg-app-card">
+      <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-app-ink">
         What-If Simulator
       </h3>
 
-      <div className="space-y-5">
+      <div className="space-y-4">
         {/* Income slider */}
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-600 dark:text-app-muted">
+          <div className="mb-1.5 flex items-center justify-between">
+            <label className="text-xs font-medium text-gray-600 dark:text-app-muted">
               Increase income
             </label>
-            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400">
               +₹{incomeIncrease.toLocaleString("en-IN")}
             </span>
           </div>
@@ -48,11 +48,11 @@ const WhatIfSimulator = ({ income = 0, expense = 0 }) => {
 
         {/* Expense slider */}
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-600 dark:text-app-muted">
+          <div className="mb-1.5 flex items-center justify-between">
+            <label className="text-xs font-medium text-gray-600 dark:text-app-muted">
               Reduce expenses
             </label>
-            <span className="text-sm font-semibold text-cyan-600 dark:text-cyan-400">
+            <span className="font-mono text-xs font-semibold text-cyan-600 dark:text-cyan-400">
               -₹{expenseReduction.toLocaleString("en-IN")}
             </span>
           </div>
@@ -65,29 +65,29 @@ const WhatIfSimulator = ({ income = 0, expense = 0 }) => {
         </div>
 
         {/* Result grid */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2">
           {[
             { label: "New Income",  value: `₹${newIncome.toLocaleString("en-IN")}` },
             { label: "New Expense", value: `₹${newExpense.toLocaleString("en-IN")}` },
           ].map(({ label, value }) => (
-            <div key={label} className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-white/[0.06] dark:bg-app-card">
+            <div key={label} className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-white/[0.04] dark:bg-app-surface">
               <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">{label}</p>
-              <p className="text-base font-bold text-gray-900 dark:text-white">{value}</p>
+              <p className="font-mono text-base font-bold text-gray-900 dark:text-app-ink">{value}</p>
             </div>
           ))}
         </div>
 
-        {/* Savings highlight */}
-        <div className="flex items-center justify-between rounded-xl border border-indigo-100 bg-indigo-50 p-4 dark:border-indigo-500/20 dark:bg-indigo-900/20">
+        {/* Savings highlight — using app-secondary (violet) accent */}
+        <div className="flex items-center justify-between rounded-xl border border-violet-200 bg-violet-50 p-3 dark:border-app-secondary/20 dark:bg-violet-900/20">
           <div>
-            <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400">New Savings</p>
-            <p className="text-2xl font-bold text-indigo-900 dark:text-indigo-100 tabular-nums">
+            <p className="text-xs font-medium text-violet-600 dark:text-violet-400">New Savings</p>
+            <p className="font-mono text-2xl font-bold tabular-nums text-violet-900 dark:text-violet-100">
               ₹{savings.toLocaleString("en-IN")}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400">Health Score</p>
-            <p className="text-xl font-bold text-indigo-900 dark:text-indigo-100 tabular-nums">
+            <p className="text-xs font-medium text-violet-600 dark:text-violet-400">Health Score</p>
+            <p className="font-mono text-xl font-bold tabular-nums text-violet-900 dark:text-violet-100">
               {healthScore.toFixed(1)}%
             </p>
           </div>

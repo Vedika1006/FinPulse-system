@@ -19,7 +19,7 @@ const navItems = [
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-30 flex h-screen w-60 shrink-0 flex-col border-r border-gray-200 bg-white transition-transform duration-300 md:relative md:translate-x-0 dark:border-white/[0.06] dark:bg-app-surface ${
+      className={`fixed inset-y-0 left-0 z-30 flex h-screen w-60 shrink-0 flex-col border-r border-gray-200 bg-white transition-transform duration-300 md:sticky md:top-0 md:translate-x-0 dark:border-white/[0.06] dark:bg-app-surface ${
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       }`}
     >

@@ -32,7 +32,7 @@ const Layout = () => {
   }, [location.pathname]);
 
   return (
-    <div className="relative flex min-h-screen overflow-hidden bg-[#F5F7FB] text-gray-900 dark:bg-app-bg dark:text-app-ink">
+    <div className="relative flex h-screen overflow-hidden bg-[#F5F7FB] text-gray-900 dark:bg-app-bg dark:text-app-ink">
       <div
         className="pointer-events-none absolute inset-0 hidden dark:block bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(106,90,224,0.35),transparent_55%),radial-gradient(ellipse_80%_50%_at_100%_50%,rgba(91,108,255,0.12),transparent_50%),radial-gradient(ellipse_60%_40%_at_0%_80%,rgba(138,124,255,0.1),transparent_45%)]"
         aria-hidden

@@ -39,21 +39,26 @@ const AnomalyAlerts = () => {
 
   if (loading) {
     return (
-      <div className="h-32 w-full animate-pulse rounded-2xl border border-gray-200 bg-white dark:border-white/[0.06] dark:bg-app-surface" />
+      <div className="w-full animate-pulse rounded-2xl border border-gray-100 bg-white p-4 dark:border-white/[0.05] dark:bg-app-card">
+        <div className="h-3 w-36 rounded bg-gray-200 dark:bg-white/10" />
+        <div className="mt-3 space-y-2">
+          <div className="h-14 rounded-xl bg-gray-100 dark:bg-white/5" />
+          <div className="h-14 rounded-xl bg-gray-100 dark:bg-white/5" />
+        </div>
+      </div>
     );
   }
 
   if (anomalies.length === 0) return null;
 
   return (
-    <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-white/[0.06] dark:bg-app-surface">
-      {/* Header — Zap icon replaces 🚨 emoji */}
-      <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
+    <div className="w-full rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-white/[0.05] dark:bg-app-card">
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-app-ink">
         <Zap className="h-4 w-4 text-amber-500" aria-hidden />
         Unusual Spending Detected
       </h3>
 
-      <div className="max-h-96 space-y-3 overflow-y-auto pr-1">
+      <div className="max-h-80 space-y-2 overflow-y-auto pr-0.5">
         {anomalies.map((anomaly, idx) => {
           const key  = (anomaly.severity || "low").toLowerCase();
           const cfg  = SEVERITY_CONFIG[key] || SEVERITY_CONFIG.low;
@@ -62,27 +67,23 @@ const AnomalyAlerts = () => {
           return (
             <div
               key={idx}
-              className={`flex items-start gap-3 rounded-xl border p-4 transition-all ${cfg.container}`}
+              className={`flex items-start gap-3 rounded-xl border p-3 transition-all ${cfg.container}`}
             >
-              {/* Severity icon replaces emoji */}
-              <Icon className={`mt-0.5 h-5 w-5 flex-shrink-0 ${cfg.iconColor}`} aria-hidden />
-
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <span className="font-semibold text-gray-900 dark:text-white tabular-nums">
+              <Icon className={`mt-0.5 h-4 w-4 flex-shrink-0 ${cfg.iconColor}`} aria-hidden />
+              <div className="min-w-0 flex-1">
+                <div className="mb-0.5 flex flex-wrap items-center gap-2">
+                  <span className="tabular-nums text-sm font-semibold text-gray-900 dark:text-app-ink">
                     ₹{Number(anomaly.amount).toLocaleString("en-IN")}
                   </span>
-                  <span className="text-sm text-gray-500 dark:text-app-muted">
+                  <span className="text-xs text-gray-500 dark:text-app-muted">
                     on {anomaly.category}
                   </span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cfg.badge}`}>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cfg.badge}`}>
                     {cfg.label}
                   </span>
                 </div>
-                <p className={`text-sm font-medium ${cfg.iconColor}`}>{anomaly.reason}</p>
-                <p className="mt-1 text-xs text-gray-400 dark:text-app-muted">
-                  {anomaly.date}
-                </p>
+                <p className={`text-xs font-medium ${cfg.iconColor}`}>{anomaly.reason}</p>
+                <p className="mt-0.5 text-[10px] text-gray-400 dark:text-app-muted">{anomaly.date}</p>
               </div>
             </div>
           );

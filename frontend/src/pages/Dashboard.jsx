@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { useTheme } from "../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
-import {
-  Wallet, Check, TrendingUp, TrendingDown,
-  PiggyBank, AlertTriangle,
-} from "lucide-react";
+import { Wallet, Check } from "lucide-react";
 import {
   getHealthScore,
   getMonthlyTrend,
@@ -18,48 +16,16 @@ import { getUserDisplayName } from "../utils/auth";
 import { Modal } from "../components/ui/Modal";
 import { EmptyState } from "../components/ui/EmptyState";
 import { DashboardSkeleton } from "../components/ui/Skeleton";
-import {
-  BarChart, Bar, Rectangle, LabelList,
-  XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, Legend, Cell,
-} from "recharts";
 import { monthLabel } from "../utils/month";
 import WhatIfSimulator from "../components/WhatIfSimulator";
 import SpendingForecast from "../components/SpendingForecast";
 import BehaviorCard from "../components/BehaviorCard";
 import AnomalyAlerts from "../components/AnomalyAlerts";
-
-// ── Time-based greeting ─────────────────────────────────────
-// Returns "Good morning", "Good afternoon", or "Good evening"
-// based on the current hour. Displayed in the hero banner.
-const getGreeting = () => {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-};
-
-// ── Health score color helper ───────────────────────────────
-// Returns a Tailwind color class based on the score value.
-// Used in both the hero banner number and progress bar.
-const healthColor = (score) => {
-  if (score >= 80) return "text-emerald-500";
-  if (score >= 60) return "text-cyan-500";
-  if (score >= 40) return "text-amber-500";
-  return "text-red-500";
-};
-const healthBarColor = (score) => {
-  if (score >= 80) return "bg-emerald-500";
-  if (score >= 60) return "bg-cyan-500";
-  if (score >= 40) return "bg-amber-500";
-  return "bg-red-500";
-};
-const healthLabel = (score) => {
-  if (score >= 80) return "Excellent";
-  if (score >= 60) return "Good";
-  if (score >= 40) return "Fair";
-  return "Needs attention";
-};
+import HeroBanner from "../components/dashboard/HeroBanner";
+import WeeklyReport from "../components/dashboard/WeeklyReport";
+import KPICards from "../components/dashboard/KPICards";
+import MonthlyTrend from "../components/dashboard/MonthlyTrend";
+import SmartAlerts from "../components/dashboard/SmartAlerts";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -168,8 +134,6 @@ const Dashboard = () => {
   const savings       = totalCredit - totalExpenses;
 
   // ── Alert banners (Smart Alerts section) ───────────────────
-  // Emoji removed from strings here — AlertTriangle icon is
-  // added in JSX instead for consistency with the icon system.
   const alerts = useMemo(() => {
     const a = [];
     if (health < 50) a.push({ tone: "yellow", text: "Your financial health score is below target." });
@@ -285,7 +249,6 @@ const Dashboard = () => {
     return Math.round(weeklyAvg * 28);
   }, [weekly]);
 
-  // Emoji removed from strings — icon is rendered in JSX
   const smartAlerts = useMemo(() => {
     const a = [];
     if (weekly.prevTotal > 0 && weekly.pct >= 30)
@@ -434,34 +397,6 @@ const Dashboard = () => {
     })();
   }, [chartModalOpen]);
 
-  // ── Trend chart tooltip ─────────────────────────────────────
-  const TrendTooltip = ({ active, payload, label }) => {
-    if (!active || !payload || payload.length === 0) return null;
-    const row       = payload[0]?.payload || {};
-    const incomeVal = row.income == null ? null : Number(row.income || 0);
-    const expenseVal = Number(row.expense || 0);
-    const savingsVal = incomeVal == null ? null : incomeVal - expenseVal;
-    return (
-      <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-lg dark:border-white/[0.08] dark:bg-app-surface dark:text-white" style={{ maxWidth: 240 }}>
-        <p className="text-xs font-semibold text-gray-500 dark:text-app-muted">Month: {label}</p>
-        <div className="mt-2 space-y-1">
-          <div className="flex justify-between gap-4">
-            <span className="text-xs text-gray-500 dark:text-app-muted">Income</span>
-            <span className="text-sm font-semibold">{incomeVal == null ? "—" : formatCurrency(incomeVal)}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-xs text-gray-500 dark:text-app-muted">Expenses</span>
-            <span className="text-sm font-semibold">{formatCurrency(expenseVal)}</span>
-          </div>
-          <div className="flex justify-between gap-4 border-t border-gray-200 pt-1.5 dark:border-white/[0.08]">
-            <span className="text-xs text-gray-500 dark:text-app-muted">Savings</span>
-            <span className="text-sm font-semibold">{incomeVal == null ? "—" : formatCurrency(savingsVal)}</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // ── Weekly suggested action extraction helper ───────────────
   const _extractWeeklySuggestedAction = (reply) => {
     const lines = String(reply || "").replace(/\r\n/g, "\n").split("\n").map((l) => l.trim());
@@ -476,17 +411,12 @@ const Dashboard = () => {
   };
 
   // ── Weekly AI action — with 1-hour localStorage cache ──────
-  // On each Dashboard load, we first check localStorage for a
-  // cached action. If it exists and is < 1 hour old we use it
-  // immediately without calling the API. Otherwise we call Groq,
-  // then write the result back to the cache. This prevents
-  // burning API tokens on every page refresh.
   useEffect(() => {
     const hasData = weekly.thisTotal > 0 || weekly.prevTotal > 0;
     if (!hasData || weeklyActionLoading || weeklyAction) return;
 
     const CACHE_KEY = "finpulse_weekly_action";
-    const CACHE_TTL = 60 * 60 * 1000; // 1 hour in ms
+    const CACHE_TTL = 60 * 60 * 1000;
 
     try {
       const raw = localStorage.getItem(CACHE_KEY);
@@ -521,7 +451,6 @@ const Dashboard = () => {
         const suggested = _extractWeeklySuggestedAction(reply) || "";
         const action    = suggested || "Set a budget for your top category and reduce spend by ₹500 this week.";
         setWeeklyAction(action);
-        // Write to cache
         try {
           localStorage.setItem(CACHE_KEY, JSON.stringify({ value: action, ts: Date.now() }));
         } catch {}
@@ -555,420 +484,173 @@ const Dashboard = () => {
 
   if (loading) return <DashboardSkeleton />;
 
-  // ── Shared button class helpers ─────────────────────────────
+  // ── Shared helpers ──────────────────────────────────────────
   const btnPrimary   = "rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-[#06080F] shadow-sm transition hover:bg-cyan-400 active:scale-[0.99]";
-  const btnSecondary = "rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-white/[0.08] dark:bg-app-card dark:text-app-subtle dark:hover:bg-white/5";
+  const btnSecondary = "rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 shadow-sm transition hover:bg-gray-50 dark:border-white/[0.08] dark:bg-app-surface dark:text-app-muted dark:hover:bg-white/5";
+
+  // ── Framer Motion row animation ─────────────────────────────
+  const row = (delay) => ({
+    initial:    { opacity: 0, y: 16 },
+    animate:    { opacity: 1, y: 0 },
+    transition: { duration: 0.35, delay, ease: "easeOut" },
+  });
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 overflow-x-hidden">
+    <div className="mx-auto max-w-6xl space-y-4 overflow-x-hidden">
 
-      {/* ══════════════════════════════════════════════════════
-          HERO BANNER
-          Personalized greeting + date + cashflow prediction
-          on the left. Health score with mini progress bar
-          on the right. Replaces the abrupt jump into data.
-      ══════════════════════════════════════════════════════ */}
-      <div className="rounded-2xl border border-gray-200 bg-white px-6 py-5 shadow-sm dark:border-white/[0.06] dark:bg-app-surface">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">
-              {new Date().toLocaleDateString("en-IN", {
-                weekday: "long", day: "numeric", month: "long", year: "numeric",
-              })}
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
-              {getGreeting()}{displayName ? `, ${displayName}` : ""}
-            </h1>
-            <p className="mt-1.5 text-sm text-gray-500 dark:text-app-muted">
-              {cashflowPrediction > 0 ? (
-                <>On track to spend{" "}
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {formatCurrency(cashflowPrediction)}
-                  </span>{" "}this month.</>
-              ) : (
-                "Add expenses to see your monthly spending forecast."
-              )}
-            </p>
-          </div>
+      {/* Row 1 — Hero banner (full width) */}
+      <motion.div {...row(0)} className="mb-4">
+        <HeroBanner
+          displayName={displayName}
+          health={health}
+          cashflowPrediction={cashflowPrediction}
+          formatCurrency={formatCurrency}
+        />
+      </motion.div>
 
-          {/* Health score — only shown when data exists */}
-          {health > 0 && (
-            <div className="flex-shrink-0 text-right">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">
-                Health score
-              </p>
-              <p className={`mt-0.5 text-3xl font-semibold leading-none tabular-nums ${healthColor(health)}`}>
-                {Math.round(health)}
-              </p>
-              <p className={`mt-1 text-[10px] font-medium ${healthColor(health)}`}>
-                {healthLabel(health)}
-              </p>
-              {/* Progress bar — width driven by inline style so Tailwind purge doesn't strip it */}
-              <div className="ml-auto mt-2 h-1 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-white/10">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${healthBarColor(health)}`}
-                  style={{ width: `${Math.min(100, health)}%` }}
-                />
+      {/* Row 2 — Onboarding / empty state / KPI cards */}
+      <motion.div {...row(0.1)}>
+        {showOnboarding ? (
+          <div className="rounded-2xl border border-cyan-200/60 bg-cyan-50/30 p-4 shadow-sm dark:border-white/[0.05] dark:bg-app-card">
+            <div className="mb-4 flex items-start justify-between">
+              <div>
+                <h2 className="text-base font-semibold tracking-tight text-gray-900 dark:text-app-ink">
+                  Welcome to FinPulse
+                </h2>
+                <p className="mt-0.5 text-sm text-gray-500 dark:text-app-muted">
+                  Set up your workspace in 3 steps.
+                </p>
               </div>
+              <button onClick={handleDismissOnboarding}
+                className="text-xs font-medium text-gray-400 hover:text-gray-700 dark:text-app-muted dark:hover:text-app-ink">
+                Dismiss
+              </button>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════
-          WEEKLY FINANCIAL REPORT
-          Unchanged logic. Smart alerts now use AlertTriangle
-          icon instead of ⚠️ emoji. Dark tokens updated.
-          Chart bar width capped with maxBarSize.
-      ══════════════════════════════════════════════════════ */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-white/[0.06] dark:bg-app-surface">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Weekly Financial Report</h2>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-app-muted">A quick check-in for the last 7 days.</p>
-          </div>
-          {/* Smart alerts — icon replaces emoji */}
-          {smartAlerts.length > 0 && (
-            <div className="space-y-1 text-right">
-              {smartAlerts.map((a, i) => (
-                <div key={i} className="flex items-center justify-end gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
-                  <AlertTriangle className="h-3 w-3 flex-shrink-0" aria-hidden />
-                  {a}
+            <div className="grid gap-3 md:grid-cols-3">
+              {[
+                { done: hasIncomeState,   label: "Add your income",  sub: "Set a baseline for month",  action: () => setIncomeModal(true) },
+                { done: hasExpensesState, label: "Add an expense",   sub: "Record a transaction",       action: () => navigate("/expenses") },
+                { done: hasBudgets,       label: "Create a budget",  sub: "Set category limits",        action: () => navigate("/budgets") },
+              ].map(({ done, label, sub, action }) => (
+                <div key={label}
+                  role={done ? "presentation" : "button"}
+                  tabIndex={done ? -1 : 0}
+                  onClick={() => !done && action()}
+                  onKeyDown={(e) => !done && e.key === "Enter" && action()}
+                  className={`flex items-start gap-3 rounded-xl border p-4 transition-all ${
+                    done
+                      ? "cursor-default border-emerald-200 bg-emerald-50/60 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+                      : "cursor-pointer border-gray-200 bg-white shadow-sm hover:border-cyan-300 hover:shadow-md dark:border-white/[0.08] dark:bg-app-surface dark:hover:border-cyan-500/40"
+                  }`}
+                >
+                  <div className={`mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full ${
+                    done ? "bg-emerald-500 text-white" : "border-2 border-gray-300 dark:border-gray-600"
+                  }`}>
+                    {done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                  </div>
+                  <div>
+                    <p className={`text-sm font-semibold ${done ? "text-emerald-800 dark:text-emerald-300" : "text-gray-900 dark:text-app-ink"}`}>
+                      {label}
+                    </p>
+                    <p className={`mt-0.5 text-xs ${done ? "text-emerald-600 dark:text-emerald-400/80" : "text-gray-400 dark:text-app-muted"}`}>
+                      {sub}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
-          )}
-        </div>
-
-        {/* 5 KPI tiles */}
-        <div className="mt-5 grid gap-3 md:grid-cols-5">
-          {[
-            { label: "Change vs last week", value: weekly.prevTotal > 0 ? `${weekly.pct >= 0 ? "+" : ""}${weekly.pct.toFixed(0)}%` : "—" },
-            { label: "Weekly expense",      value: weekly.thisTotal > 0 ? formatCurrency(weekly.thisTotal) : "—" },
-            { label: "Top category",        value: weekly.topCategory ? String(weekly.topCategory) : "—" },
-            { label: "Risk level",          value: weekly.risk },
-            { label: "Suggested action",    value: weeklyActionLoading ? "Generating…" : weeklyAction || "—", small: true },
-          ].map(({ label, value, small }) => (
-            <div key={label} className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-white/[0.06] dark:bg-app-card">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">{label}</p>
-              <p className={`mt-2 font-semibold text-gray-900 dark:text-white ${small ? "text-sm leading-snug" : "text-xl tabular-nums"}`}>
-                {value}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* Weekly bar chart */}
-        <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-white/[0.06] dark:bg-app-card">
-          <p className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">This week (Mon–Sun)</p>
-          {weeklyBars.every((d) => (d.spent || 0) === 0) ? (
-            <p className="text-sm text-gray-500 dark:text-app-muted">No spending recorded this week yet.</p>
-          ) : (
-            <div className="h-52">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyBars} margin={{ top: 16, right: 8, left: 0, bottom: 0 }} barCategoryGap={12}>
-                  <CartesianGrid stroke={chartGrid} strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="day" tick={chartAxisTick} axisLine={false} tickLine={false} />
-                  <YAxis tick={chartAxisTick} axisLine={false} tickLine={false}
-                    tickFormatter={(v) => `₹${Number(v || 0).toFixed(0)}`} />
-                  <Tooltip contentStyle={chartTooltipStyle} formatter={(v) => [formatCurrency(v), "Spent"]} labelFormatter={(l) => `Day: ${l}`} />
-                  {/* maxBarSize prevents single-bar full-width rendering */}
-                  <Bar dataKey="spent" name="Spent" radius={[8, 8, 0, 0]} maxBarSize={64} isAnimationActive animationDuration={700}>
-                    {weeklyBars.map((entry, idx) => (
-                      <Cell
-                        key={idx}
-                        fill={entry.isHigh && !entry.isFuture ? "#EF4444" : "#06B6D4"}
-                        fillOpacity={entry.isFuture ? 0.25 : 1}
-                      />
-                    ))}
-                    <LabelList dataKey="spent" position="top"
-                      formatter={(v) => (v ? `₹${Number(v).toFixed(0)}` : "")}
-                      style={{ fontSize: 10, fill: isDark ? "#94A3B8" : "#6B7280", fontWeight: 500 }}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-
-        <p className="mt-3 text-sm text-gray-500 dark:text-app-muted">
-          At this rate, you will spend{" "}
-          <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(cashflowPrediction)}</span>{" "}
-          this month.
-        </p>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════
-          ONBOARDING / KPI CARDS
-          Onboarding title updated from ExpenseAI → FinPulse.
-          KPI cards now have icons and trend arrows.
-      ══════════════════════════════════════════════════════ */}
-      {showOnboarding ? (
-        <div className="rounded-2xl border border-cyan-200/60 bg-cyan-50/30 p-6 shadow-sm dark:border-white/[0.06] dark:bg-app-card">
-          <div className="mb-5 flex items-start justify-between">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-                Welcome to FinPulse
-              </h2>
-              <p className="mt-0.5 text-sm text-gray-500 dark:text-app-muted">
-                Set up your workspace in 3 steps.
-              </p>
-            </div>
-            <button onClick={handleDismissOnboarding}
-              className="text-xs font-medium text-gray-400 hover:text-gray-700 dark:text-app-muted dark:hover:text-white">
-              Dismiss
-            </button>
           </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            {[
-              { done: hasIncomeState,   label: "Add your income",  sub: "Set a baseline for month",  action: () => setIncomeModal(true) },
-              { done: hasExpensesState, label: "Add an expense",   sub: "Record a transaction",       action: () => navigate("/expenses") },
-              { done: hasBudgets,       label: "Create a budget",  sub: "Set category limits",        action: () => navigate("/budgets") },
-            ].map(({ done, label, sub, action }) => (
-              <div key={label}
-                role={done ? "presentation" : "button"}
-                tabIndex={done ? -1 : 0}
-                onClick={() => !done && action()}
-                onKeyDown={(e) => !done && e.key === "Enter" && action()}
-                className={`flex items-start gap-3 rounded-xl border p-4 transition-all ${
-                  done
-                    ? "cursor-default border-emerald-200 bg-emerald-50/60 dark:border-emerald-500/20 dark:bg-emerald-500/10"
-                    : "cursor-pointer border-gray-200 bg-white shadow-sm hover:border-cyan-300 hover:shadow-md dark:border-white/[0.08] dark:bg-app-surface dark:hover:border-cyan-500/40"
-                }`}
-              >
-                <div className={`mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full ${
-                  done ? "bg-emerald-500 text-white" : "border-2 border-gray-300 dark:border-gray-600"
-                }`}>
-                  {done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
-                </div>
-                <div>
-                  <p className={`text-sm font-semibold ${done ? "text-emerald-800 dark:text-emerald-300" : "text-gray-900 dark:text-white"}`}>
-                    {label}
-                  </p>
-                  <p className={`mt-0.5 text-xs ${done ? "text-emerald-600 dark:text-emerald-400/80" : "text-gray-400 dark:text-app-muted"}`}>
-                    {sub}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (!income?.amount && totalExpenses === 0) ? (
-        <EmptyState
-          icon={Wallet}
-          title="Welcome to FinPulse"
-          description="Add your first income or expense to get started."
-        />
-      ) : (
-        /* ── Upgraded KPI cards ──────────────────────────────
-           Each card has a color-coded icon square, the value
-           in large text, and a contextual sub-label.
-           The expense card shows the week-over-week delta.
-           The savings card shows savings rate when income exists.
-        ─────────────────────────────────────────────────── */
-        <div className="grid gap-4 md:grid-cols-3">
-          {/* Income */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-white/[0.06] dark:bg-app-surface">
-            <div className="flex items-start justify-between">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-50 dark:bg-cyan-500/10">
-                <TrendingUp className="h-[18px] w-[18px] text-cyan-600 dark:text-cyan-400" aria-hidden />
-              </div>
-              {income?.amount && (
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                  This month
-                </span>
-              )}
-            </div>
-            <p className="mt-3 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">Income</p>
-            {income?.amount ? (
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">
-                {formatCurrency(totalCredit)}
-              </p>
-            ) : (
-              <button type="button" onClick={() => setIncomeModal(true)} className={`mt-2 ${btnPrimary} px-3 py-1.5 text-xs`}>
-                Add income
-              </button>
-            )}
-          </div>
-
-          {/* Expenses */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-white/[0.06] dark:bg-app-surface">
-            <div className="flex items-start justify-between">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-500/10">
-                <Wallet className="h-[18px] w-[18px] text-orange-600 dark:text-orange-400" aria-hidden />
-              </div>
-              {/* Week-over-week trend arrow */}
-              {weekly.prevTotal > 0 && (
-                <div className={`flex items-center gap-0.5 text-[10px] font-medium ${weekly.pct > 0 ? "text-red-500" : "text-emerald-500"}`}>
-                  {weekly.pct > 0
-                    ? <TrendingUp className="h-3 w-3" aria-hidden />
-                    : <TrendingDown className="h-3 w-3" aria-hidden />}
-                  {Math.abs(weekly.pct).toFixed(0)}% vs last week
-                </div>
-              )}
-            </div>
-            <p className="mt-3 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">Expenses</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">
-              {formatCurrency(totalExpenses)}
-            </p>
-            {weekly.topCategory && (
-              <p className="mt-1 text-xs text-gray-400 dark:text-app-muted">
-                Top: {weekly.topCategory}
-              </p>
-            )}
-          </div>
-
-          {/* Savings */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-white/[0.06] dark:bg-app-surface">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl
-              bg-emerald-50 dark:bg-emerald-500/10">
-              <PiggyBank className="h-[18px] w-[18px] text-emerald-600 dark:text-emerald-400" aria-hidden />
-            </div>
-            <p className="mt-3 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">Savings</p>
-            {income?.amount ? (
-              <>
-                <p className={`mt-1 text-2xl font-semibold tabular-nums ${savings < 0 ? "text-red-500" : "text-emerald-500"}`}>
-                  {formatCurrency(savings)}
-                </p>
-                {totalCredit > 0 && (
-                  <p className="mt-1 text-xs text-gray-400 dark:text-app-muted">
-                    {((savings / totalCredit) * 100).toFixed(1)}% savings rate
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="mt-1.5 text-sm text-gray-400 dark:text-app-muted">Add income to calculate</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════
-          MONTHLY TREND CHART
-          maxBarSize={80} on both Bar components fixes the
-          "solid red rectangle" bug when only one month of
-          data exists. Income bars now teal, expense bars
-          orange — less alarming than the original red.
-      ══════════════════════════════════════════════════════ */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-white/[0.06] dark:bg-app-surface">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Monthly trend</h3>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-app-muted">Income vs expenses by month.</p>
-          </div>
-          <button type="button" onClick={() => askAIExplain("monthly_trend", "Dashboard: monthly trend chart.")} className={btnSecondary}>
-            {explaining === "monthly_trend" ? "Explaining…" : "Explain this"}
-          </button>
-        </div>
-
-        {trendData.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center dark:border-white/10 dark:bg-white/[0.02]">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">No data yet</p>
-            <p className="mt-1 text-sm text-gray-500 dark:text-app-muted">Add expenses to see your monthly trend.</p>
-            <button type="button" onClick={() => navigate("/expenses")} className={`mt-4 ${btnPrimary}`}>
-              Add Expense
-            </button>
-          </div>
+        ) : (!income?.amount && totalExpenses === 0) ? (
+          <EmptyState
+            icon={Wallet}
+            title="Welcome to FinPulse"
+            description="Add your first income or expense to get started."
+          />
         ) : (
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={trendData}
-                margin={{ top: 16, right: 8, left: 0, bottom: 0 }}
-                barCategoryGap={14}
-                onMouseMove={(s) => { if (s?.isTooltipActive) setHoveredMonthLabel(String(s.activeLabel || "")); }}
-                onMouseLeave={() => setHoveredMonthLabel("")}
-              >
-                <CartesianGrid stroke={chartGrid} strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" tick={chartAxisTick} axisLine={false} tickLine={false} />
-                <YAxis tick={chartAxisTick} axisLine={false} tickLine={false}
-                  tickFormatter={(v) => `₹${Number(v || 0).toFixed(0)}`} />
-                <Tooltip content={<TrendTooltip />} />
-                <Legend wrapperStyle={legendStyle} />
-
-                {income?.amount ? (
-                  <Bar dataKey="income" name="Income" fill="#06B6D4"
-                    radius={[8, 8, 0, 0]}
-                    maxBarSize={80}
-                    isAnimationActive animationDuration={700}
-                    onClick={(pt) => {
-                      const m = Number(pt?.month);
-                      if (!m) return;
-                      setClickedMonth(m); setSelectedMonth(m);
-                      setChartModalOpen(true); setSelectedCats(new Set());
-                    }}
-                    shape={(props) => <Rectangle {...props} fillOpacity={hoveredMonthLabel && props?.payload?.label === hoveredMonthLabel ? 1 : 0.85} />}
-                  >
-                    <LabelList dataKey="income" position="top"
-                      formatter={(v) => (v ? `₹${Number(v).toFixed(0)}` : "")}
-                      style={{ fontSize: 10, fill: isDark ? "#94A3B8" : "#6B7280", fontWeight: 500 }}
-                    />
-                  </Bar>
-                ) : null}
-
-                {/* Expense bars — orange (not red) to be less alarming */}
-                <Bar dataKey="expense" name="Expense" fill="#F97316"
-                  radius={[8, 8, 0, 0]}
-                  maxBarSize={80}
-                  isAnimationActive animationDuration={700}
-                  onClick={(pt) => {
-                    const m = Number(pt?.month);
-                    if (!m) return;
-                    setClickedMonth(m); setSelectedMonth(m);
-                    setChartModalOpen(true); setSelectedCats(new Set());
-                  }}
-                  shape={(props) => <Rectangle {...props} fillOpacity={hoveredMonthLabel && props?.payload?.label === hoveredMonthLabel ? 1 : 0.85} />}
-                >
-                  <LabelList dataKey="expense" position="top"
-                    formatter={(v) => (v ? `₹${Number(v).toFixed(0)}` : "")}
-                    style={{ fontSize: 10, fill: isDark ? "#94A3B8" : "#6B7280", fontWeight: 500 }}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <KPICards
+            income={income}
+            totalCredit={totalCredit}
+            totalExpenses={totalExpenses}
+            savings={savings}
+            weekly={weekly}
+            formatCurrency={formatCurrency}
+            btnPrimary={btnPrimary}
+            setIncomeModal={setIncomeModal}
+          />
         )}
-      </div>
+      </motion.div>
 
-      {/* ══════════════════════════════════════════════════════
-          SMART ALERTS
-          AlertTriangle icon replaces ⚠️ emoji.
-          Dark tokens updated.
-      ══════════════════════════════════════════════════════ */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-white/[0.06] dark:bg-app-surface">
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Smart Alerts</h3>
-          <button type="button" onClick={() => navigate("/analytics")} className={btnSecondary}>
-            View details
-          </button>
+      {/* Row 3 — 60/40: WeeklyReport | SmartAlerts + AnomalyAlerts */}
+      <motion.div {...row(0.2)}>
+        <div className="grid grid-cols-5 gap-4 mb-4">
+          <div className="col-span-3">
+            <WeeklyReport
+              weekly={weekly}
+              weeklyBars={weeklyBars}
+              weeklyAction={weeklyAction}
+              weeklyActionLoading={weeklyActionLoading}
+              cashflowPrediction={cashflowPrediction}
+              smartAlerts={smartAlerts}
+              formatCurrency={formatCurrency}
+              isDark={isDark}
+              chartTooltipStyle={chartTooltipStyle}
+              chartAxisTick={chartAxisTick}
+              chartGrid={chartGrid}
+            />
+          </div>
+          <div className="col-span-2 flex flex-col gap-4">
+            <SmartAlerts
+              alerts={alerts}
+              btnSecondary={btnSecondary}
+              navigate={navigate}
+            />
+            <AnomalyAlerts />
+          </div>
         </div>
-        <div className="space-y-2">
-          {alerts.map((a, i) => (
-            <div key={i} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
-              a.tone === "red"
-                ? "border-red-200 bg-red-50 text-red-700 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-300"
-                : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-200"
-            }`}>
-              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden />
-              {a.text}
-            </div>
-          ))}
+      </motion.div>
+
+      {/* Row 4 — 60/40: MonthlyTrend | BehaviorCard */}
+      <motion.div {...row(0.3)}>
+        <div className="grid grid-cols-5 gap-4 mb-4">
+          <div className="col-span-3">
+            <MonthlyTrend
+              trendData={trendData}
+              income={income}
+              isDark={isDark}
+              explaining={explaining}
+              askAIExplain={askAIExplain}
+              hoveredMonthLabel={hoveredMonthLabel}
+              setHoveredMonthLabel={setHoveredMonthLabel}
+              setClickedMonth={setClickedMonth}
+              setSelectedMonth={setSelectedMonth}
+              setChartModalOpen={setChartModalOpen}
+              setSelectedCats={setSelectedCats}
+              btnPrimary={btnPrimary}
+              btnSecondary={btnSecondary}
+              formatCurrency={formatCurrency}
+              chartTooltipStyle={chartTooltipStyle}
+              chartAxisTick={chartAxisTick}
+              chartGrid={chartGrid}
+              legendStyle={legendStyle}
+              navigate={navigate}
+            />
+          </div>
+          <div className="col-span-2">
+            <BehaviorCard />
+          </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Anomaly Alerts + Behavior + WhatIf + Forecast */}
-      <div className="mt-2">
-        <AnomalyAlerts />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div className="flex flex-col gap-6">
-          <BehaviorCard />
+      {/* Row 5 — Scenario Tools */}
+      <motion.div {...row(0.4)}>
+        <p className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted mb-2">
+          Scenario Tools
+        </p>
+        <div className="grid grid-cols-2 gap-4 mb-4">
           <WhatIfSimulator income={Number(income?.amount || 0)} expense={totalExpenses} />
+          <SpendingForecast />
         </div>
-        <SpendingForecast />
-      </div>
+      </motion.div>
 
       {/* ── Income modal ──────────────────────────────────── */}
       {incomeModal && (
@@ -976,15 +658,15 @@ const Dashboard = () => {
           <button type="button" className="absolute inset-0 bg-black/40 dark:bg-black/60"
             onClick={() => setIncomeModal(false)} aria-label="Close income modal" />
           <div className="relative z-10 w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-white/[0.08] dark:bg-app-card">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Add monthly income</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-app-ink">Add monthly income</h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-app-muted">Used to calculate savings and health score.</p>
             <input value={incomeAmount} onChange={(e) => setIncomeAmount(e.target.value)}
               type="number" min="0" step="1" placeholder="e.g. 85000"
-              className="mt-4 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 dark:border-white/[0.08] dark:bg-app-surface dark:text-white"
+              className="mt-4 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 dark:border-white/[0.08] dark:bg-app-surface dark:text-app-ink"
             />
             <div className="mt-5 flex justify-end gap-3">
               <button onClick={() => setIncomeModal(false)}
-                className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-white/[0.08] dark:bg-transparent dark:text-app-subtle dark:hover:bg-white/5">
+                className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-white/[0.08] dark:bg-transparent dark:text-app-muted dark:hover:bg-white/5">
                 Cancel
               </button>
               <button onClick={saveIncome} className={btnPrimary}>Save</button>
@@ -998,7 +680,7 @@ const Dashboard = () => {
         footer={
           <>
             <button type="button" onClick={resetChartFilters}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 dark:border-white/[0.08] dark:bg-transparent dark:text-white dark:hover:bg-white/5">
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 dark:border-white/[0.08] dark:bg-transparent dark:text-app-ink dark:hover:bg-white/5">
               Reset
             </button>
             <button type="button" onClick={() => setChartModalOpen(false)} className={btnPrimary}>
@@ -1013,7 +695,7 @@ const Dashboard = () => {
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-app-muted">Month</label>
               <select value={selectedMonthNum || ""}
                 onChange={(e) => { setSelectedMonth(Number(e.target.value)); setSelectedCats(new Set()); }}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-cyan-500 dark:border-white/[0.08] dark:bg-app-surface dark:text-white"
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-cyan-500 dark:border-white/[0.08] dark:bg-app-surface dark:text-app-ink"
               >
                 {monthOptions.map((m) => (
                   <option key={m.value} value={m.value}>{m.label}</option>
@@ -1028,7 +710,7 @@ const Dashboard = () => {
               ].map(([label, val]) => (
                 <div key={label} className="flex justify-between gap-6">
                   <span className="text-xs text-gray-500 dark:text-app-muted">{label}</span>
-                  <span className="font-semibold tabular-nums text-gray-900 dark:text-white">{val}</span>
+                  <span className="font-semibold tabular-nums text-gray-900 dark:text-app-ink">{val}</span>
                 </div>
               ))}
             </div>
@@ -1041,7 +723,7 @@ const Dashboard = () => {
             ) : (
               <div className="max-h-44 space-y-2 overflow-auto rounded-xl border border-gray-200 bg-white p-3 dark:border-white/[0.08] dark:bg-app-surface">
                 {categoriesInMonth.map((cat) => (
-                  <label key={cat} className="flex items-center justify-between gap-3 text-sm text-gray-900 dark:text-white">
+                  <label key={cat} className="flex items-center justify-between gap-3 text-sm text-gray-900 dark:text-app-ink">
                     <span className="flex-1">{titleCaseCategory(cat)}</span>
                     <input type="checkbox" checked={effectiveSelectedCats.has(cat)}
                       onChange={(e) => {
