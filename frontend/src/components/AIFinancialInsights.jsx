@@ -76,7 +76,7 @@ function InsightBlock({ title, value, type }) {
     <div className={`rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-white/[0.06] dark:bg-app-card ${blockStyles[type]}`}>
       <p className="mb-1 text-xs font-medium text-gray-500 dark:text-app-muted">{title}</p>
       <p className="text-sm leading-relaxed text-gray-900 dark:text-white">{value || "No data available"}</p>
-      {value ? (
+      {value && type === "suggestion" ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {actions.map((a) => (
             <button
@@ -188,7 +188,7 @@ export function AIFinancialInsights({
           <>
             <div className="grid gap-6 lg:grid-cols-2">
               {/* ── LEFT: Health score + reasons ──────── */}
-              <div className="space-y-4">
+              <div className="space-y-4 sticky top-4">
                 {memory?.frequent_category ? (
                   <p className="text-xs font-medium text-gray-700 dark:text-white/80">
                     Based on your past behavior: {memory.habit} in{" "}

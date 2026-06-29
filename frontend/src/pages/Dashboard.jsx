@@ -18,13 +18,10 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { DashboardSkeleton } from "../components/ui/Skeleton";
 import { monthLabel } from "../utils/month";
 import WhatIfSimulator from "../components/WhatIfSimulator";
-import SpendingForecast from "../components/SpendingForecast";
-import BehaviorCard from "../components/BehaviorCard";
 import AnomalyAlerts from "../components/AnomalyAlerts";
 import HeroBanner from "../components/dashboard/HeroBanner";
 import WeeklyReport from "../components/dashboard/WeeklyReport";
 import KPICards from "../components/dashboard/KPICards";
-import MonthlyTrend from "../components/dashboard/MonthlyTrend";
 import SmartAlerts from "../components/dashboard/SmartAlerts";
 
 const Dashboard = () => {
@@ -610,47 +607,13 @@ const Dashboard = () => {
         </div>
       </motion.div>
 
-      {/* Row 4 — 60/40: MonthlyTrend | BehaviorCard */}
-      <motion.div {...row(0.3)}>
-        <div className="grid grid-cols-5 gap-4 mb-4">
-          <div className="col-span-3 flex flex-col">
-            <MonthlyTrend
-              trendData={trendData}
-              income={income}
-              isDark={isDark}
-              explaining={explaining}
-              askAIExplain={askAIExplain}
-              hoveredMonthLabel={hoveredMonthLabel}
-              setHoveredMonthLabel={setHoveredMonthLabel}
-              setClickedMonth={setClickedMonth}
-              setSelectedMonth={setSelectedMonth}
-              setChartModalOpen={setChartModalOpen}
-              setSelectedCats={setSelectedCats}
-              btnPrimary={btnPrimary}
-              btnSecondary={btnSecondary}
-              formatCurrency={formatCurrency}
-              chartTooltipStyle={chartTooltipStyle}
-              chartAxisTick={chartAxisTick}
-              chartGrid={chartGrid}
-              legendStyle={legendStyle}
-              navigate={navigate}
-              className="flex-1"
-            />
-          </div>
-          <div className="col-span-2 flex flex-col">
-            <BehaviorCard className="flex-1" />
-          </div>
-        </div>
-      </motion.div>
-
       {/* Row 5 — Scenario Tools */}
       <motion.div {...row(0.4)}>
         <p className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted mb-2">
           Scenario Tools
         </p>
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 gap-4 mb-4">
           <WhatIfSimulator income={Number(income?.amount || 0)} expense={totalExpenses} />
-          <SpendingForecast />
         </div>
       </motion.div>
 
