@@ -29,7 +29,7 @@ const BEHAVIOR_CONFIG = {
   },
 };
 
-const BehaviorCard = () => {
+const BehaviorCard = ({ className }) => {
   const [behavior, setBehavior] = useState(null);
   const [loading,  setLoading]  = useState(true);
 
@@ -42,7 +42,7 @@ const BehaviorCard = () => {
 
   if (loading) {
     return (
-      <div className="w-full animate-pulse rounded-2xl border border-gray-100 bg-white p-4 dark:border-white/[0.05] dark:bg-app-card">
+      <div className={`h-full w-full animate-pulse rounded-2xl border border-gray-100 bg-white p-4 dark:border-white/[0.05] dark:bg-app-card${className ? ` ${className}` : ""}`}>
         <div className="h-3 w-24 rounded bg-gray-200 dark:bg-white/10" />
         <div className="mt-3 h-8 w-36 rounded-full bg-gray-200 dark:bg-white/10" />
         <div className="mt-3 h-12 w-full rounded bg-gray-200 dark:bg-white/10" />
@@ -61,7 +61,7 @@ const BehaviorCard = () => {
   const Icon = cfg.Icon;
 
   return (
-    <div className={`w-full rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-white/[0.05] dark:bg-app-card border-l-4 ${cfg.accent}`}>
+    <div className={`h-full w-full rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-white/[0.05] dark:bg-app-card border-l-4 ${cfg.accent}${className ? ` ${className}` : ""}`}>
       <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-app-muted">
         Financial Fingerprint
       </p>

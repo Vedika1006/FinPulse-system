@@ -24,6 +24,7 @@ const MonthlyTrend = ({
   chartGrid,
   legendStyle,
   navigate,
+  className,
 }) => {
   const TrendTooltip = ({ active, payload, label }) => {
     if (!active || !payload || payload.length === 0) return null;
@@ -53,7 +54,7 @@ const MonthlyTrend = ({
   };
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-white/[0.05] dark:bg-app-card">
+    <div className={`h-full rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-white/[0.05] dark:bg-app-card${className ? ` ${className}` : ""}`}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h3 className="text-base font-semibold text-gray-900 dark:text-app-ink">Monthly Trend</h3>

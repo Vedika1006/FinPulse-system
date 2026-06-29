@@ -17,9 +17,10 @@ const WeeklyReport = ({
   chartTooltipStyle,
   chartAxisTick,
   chartGrid,
+  className,
 }) => {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-white/[0.05] dark:bg-app-card">
+    <div className={`h-full rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-white/[0.05] dark:bg-app-card${className ? ` ${className}` : ""}`}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-base font-semibold text-gray-900 dark:text-app-ink">Weekly Financial Report</h2>
