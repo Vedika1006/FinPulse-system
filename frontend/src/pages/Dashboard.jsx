@@ -583,7 +583,7 @@ const Dashboard = () => {
       {/* Row 3 — 60/40: WeeklyReport | SmartAlerts + AnomalyAlerts */}
       <motion.div {...row(0.2)}>
         <div className="grid grid-cols-5 gap-4 mb-4">
-          <div className="col-span-3">
+          <div className="col-span-3 flex flex-col">
             <WeeklyReport
               weekly={weekly}
               weeklyBars={weeklyBars}
@@ -596,6 +596,7 @@ const Dashboard = () => {
               chartTooltipStyle={chartTooltipStyle}
               chartAxisTick={chartAxisTick}
               chartGrid={chartGrid}
+              className="flex-1"
             />
           </div>
           <div className="col-span-2 flex flex-col gap-4">
@@ -612,7 +613,7 @@ const Dashboard = () => {
       {/* Row 4 — 60/40: MonthlyTrend | BehaviorCard */}
       <motion.div {...row(0.3)}>
         <div className="grid grid-cols-5 gap-4 mb-4">
-          <div className="col-span-3">
+          <div className="col-span-3 flex flex-col">
             <MonthlyTrend
               trendData={trendData}
               income={income}
@@ -633,10 +634,11 @@ const Dashboard = () => {
               chartGrid={chartGrid}
               legendStyle={legendStyle}
               navigate={navigate}
+              className="flex-1"
             />
           </div>
-          <div className="col-span-2">
-            <BehaviorCard />
+          <div className="col-span-2 flex flex-col">
+            <BehaviorCard className="flex-1" />
           </div>
         </div>
       </motion.div>
