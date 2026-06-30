@@ -171,10 +171,10 @@ const Dashboard = () => {
   };
 
   const weekly = useMemo(() => {
-    const now     = Date.now();
-    const dayMs   = 86400000;
-    const startThis = now - 7 * dayMs;
-    const startPrev = now - 14 * dayMs;
+    // Use the same Mon–Sun calendar week as the bar chart so "Weekly Expense" == bar total.
+    const weekStart = _startOfWeekMonday(new Date());
+    const weekEnd   = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 7);
+    const prevStart = new Date(weekStart); prevStart.setDate(prevStart.getDate() - 7);
 
     const rows = Array.isArray(allExpenses) && allExpenses.length
       ? allExpenses
@@ -186,13 +186,15 @@ const Dashboard = () => {
 
     for (const e of rows) {
       const amt = Number(e.amount || 0);
-      const ts  = e.created_at ? new Date(e.created_at).getTime() : NaN;
-      if (!Number.isFinite(ts)) continue;
-      if (ts >= startThis) {
+      // Prefer actual transaction date; fall back to created_at for manually-added expenses
+      const txDate = e.date ? new Date(e.date) : e.created_at ? new Date(e.created_at) : null;
+      if (!txDate || !Number.isFinite(txDate.getTime())) continue;
+      const t = txDate.getTime();
+      if (t >= weekStart.getTime() && t < weekEnd.getTime()) {
         thisTotal += amt;
         const c = String(e.category || "Other");
         catTotals.set(c, (catTotals.get(c) || 0) + amt);
-      } else if (ts >= startPrev && ts < startThis) {
+      } else if (t >= prevStart.getTime() && t < weekStart.getTime()) {
         prevTotal += amt;
       }
     }
@@ -214,20 +216,43 @@ const Dashboard = () => {
   const weeklyBars = useMemo(() => {
     const rows  = Array.isArray(allExpenses) ? allExpenses : [];
     const start = _startOfWeekMonday(new Date());
-    const end   = new Date(start);
-    end.setDate(end.getDate() + 7);
+    const end   = new Date(start); end.setDate(end.getDate() + 7);
+
+    // [DEBUG] Log raw data before any bucketing so we can see whether e.date is
+    // populated with real transaction dates or null (falling back to created_at).
+    if (rows.length > 0) {
+      const sample = rows.slice(0, 5).map((e) => ({
+        date:       e.date ?? null,
+        created_at: e.created_at ? e.created_at.slice(0, 10) : null,
+        resolved:   e.date
+          ? new Date(e.date).toLocaleDateString("en-IN")
+          : `FALLBACK→${e.created_at ? e.created_at.slice(0, 10) : "null"}`,
+        amount: e.amount,
+      }));
+      console.log(
+        `[WeeklyBars] window ${start.toLocaleDateString("en-IN")} – ${end.toLocaleDateString("en-IN")} | total rows: ${rows.length}`
+      );
+      console.log("[WeeklyBars] first 5 expense date fields:", sample);
+    }
 
     const days   = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const totals = new Array(7).fill(0);
 
     for (const e of rows) {
-      const ts = e?.created_at ? new Date(e.created_at) : null;
+      // Prefer actual transaction date; fall back to created_at for manually-added expenses
+      const ts = e?.date ? new Date(e.date) : e?.created_at ? new Date(e.created_at) : null;
       if (!ts || Number.isNaN(ts.getTime())) continue;
       if (ts < start || ts >= end) continue;
       const js  = ts.getDay();
       const idx = js === 0 ? 6 : js - 1;
       totals[idx] += Number(e?.amount || 0);
     }
+
+    const weekTotal = totals.reduce((a, b) => a + b, 0);
+    console.log(
+      `[WeeklyBars] in-week total ₹${weekTotal.toFixed(0)} | `,
+      days.map((d, i) => `${d}:₹${totals[i].toFixed(0)}`).join("  ")
+    );
 
     const avg           = totals.reduce((a, b) => a + b, 0) / 7;
     const currentJsDay  = new Date().getDay();
@@ -249,17 +274,17 @@ const Dashboard = () => {
     // Use local month/year (toISOString gives UTC which can be the previous day near midnight in IST)
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
-    // Filter by created_at to match how Analytics computes "this month".
-    // Imported expenses get created_at = import date, not their original transaction date,
-    // so this correctly counts all expenses entered/imported this month.
+    // Use actual transaction date for month bucketing so imported historical data
+    // (e.g. May expenses imported in June) doesn't inflate the June projection.
+    // Fall back to created_at for manually-added expenses that have no transaction date.
     const monthTotal = (Array.isArray(allExpenses) ? allExpenses : [])
       .filter((e) => {
-        const ts = e?.created_at ? new Date(e.created_at) : null;
+        const ts = e?.date ? new Date(e.date) : e?.created_at ? new Date(e.created_at) : null;
         return ts && ts.getMonth() === currentMonth && ts.getFullYear() === currentYear;
       })
       .reduce((s, e) => s + Number(e.amount || 0), 0);
     if (monthTotal === 0) return 0;
-    console.log(`[Projection] This month spent: ₹${monthTotal.toFixed(0)}, Days elapsed: ${daysElapsed}/${daysInMonth}`);
+    console.log(`[Projection] This month (by tx date): ₹${monthTotal.toFixed(0)}, Days elapsed: ${daysElapsed}/${daysInMonth}`);
     const projection = Math.round((monthTotal / daysElapsed) * daysInMonth);
     // Projection can never be less than what's already been spent
     return Math.max(projection, Math.round(monthTotal));
