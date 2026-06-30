@@ -257,3 +257,40 @@ class AIExpenseParseResponse(BaseModel):
     category: str
     date: str
     description: str
+
+
+# ── CSV Import schemas ────────────────────────────────────────────────────────
+
+class ImportTransactionPreview(BaseModel):
+    date: str
+    description: str
+    amount: float
+    type: str
+    suggested_category: str = "Other"
+    category_confidence: float = 0.0
+    is_duplicate: bool = False
+    duplicate_confidence: float = 0.0
+
+
+class ImportIncomeEntry(BaseModel):
+    date: str
+    description: str
+    amount: float
+    type: str
+
+
+class ImportPreviewResponse(BaseModel):
+    total_found: int
+    duplicate_count: int
+    transactions: list[ImportTransactionPreview]
+    income_entries: list[ImportIncomeEntry]
+
+
+class ImportConfirmRequest(BaseModel):
+    transactions: list[dict]
+    skip_duplicates: bool = True
+
+
+class ImportConfirmResponse(BaseModel):
+    imported_count: int
+    skipped_count: int
