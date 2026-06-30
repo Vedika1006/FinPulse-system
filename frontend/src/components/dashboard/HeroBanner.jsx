@@ -1,3 +1,6 @@
+import { Wallet, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
 const getGreeting = () => {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -21,7 +24,18 @@ const healthLabel = (score) => {
   return "Needs attention";
 };
 
-const HeroBanner = ({ displayName, health, cashflowPrediction, formatCurrency }) => {
+const HeroBanner = ({ displayName, health, cashflowPrediction, formatCurrency, income, totalExpenses, totalBudget }) => {
+  const navigate = useNavigate();
+
+  const today = new Date();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const daysRemaining = daysInMonth - today.getDate() + 1;
+
+  const totalIncome = income || 0;
+  const reserved = totalBudget > 0 ? totalBudget : totalIncome * 0.3;
+  const availableToSpend = Math.max(totalIncome - reserved - (totalExpenses || 0), 0);
+  const safeToSpendPerDay = daysRemaining > 0 ? Math.round(availableToSpend / daysRemaining) : 0;
+
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-white/[0.05] dark:bg-app-card">
       <div className="flex items-center justify-between gap-6">
@@ -66,6 +80,37 @@ const HeroBanner = ({ displayName, health, cashflowPrediction, formatCurrency })
           </div>
         )}
       </div>
+
+      {totalIncome > 0 ? (
+        <>
+          <div className="mt-4 pt-4 border-t border-white/5 dark:border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-app-accent/10 flex items-center justify-center flex-shrink-0">
+                <Wallet className="w-5 h-5 text-app-accent" />
+              </div>
+              <div>
+                <p className="text-xs text-app-muted uppercase tracking-wide">Safe to spend today</p>
+                <p className="text-2xl font-bold font-mono text-app-accent">₹{safeToSpendPerDay}<span className="text-sm font-normal text-app-muted">/day</span></p>
+              </div>
+            </div>
+            <button onClick={() => navigate('/calendar')} className="text-xs text-app-accent border border-app-accent/30 rounded-lg px-3 py-1.5 hover:bg-app-accent/10 transition-colors flex items-center gap-1">
+              View cashflow <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+          <p className="text-xs text-app-muted mt-1.5 ml-13">Based on your income, budgets, and {daysRemaining} days left this month</p>
+        </>
+      ) : (
+        <div className="mt-4 pt-4 border-t border-white/5 dark:border-white/5">
+          <div className="flex items-center gap-3 bg-app-accent/5 border border-app-accent/15 rounded-xl p-3">
+            <Wallet className="w-5 h-5 text-app-accent flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm text-app-ink dark:text-white font-medium">Add your income to see daily safe-to-spend</p>
+              <p className="text-xs text-app-muted">We'll calculate how much you can spend each day</p>
+            </div>
+            <button className="text-xs bg-app-accent text-white rounded-lg px-3 py-1.5 whitespace-nowrap">Add Income</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
