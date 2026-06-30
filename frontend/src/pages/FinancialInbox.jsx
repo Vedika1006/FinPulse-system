@@ -187,7 +187,7 @@ export default function FinancialInbox() {
         setLoading(false);
       }
     })();
-  }, [month]);
+  }, [month, navigate]);
 
   const visibleItems = useMemo(
     () => items.filter((item) => !dismissed.has(item.id) && matchesTab(item.type, activeTab)),
@@ -251,7 +251,7 @@ export default function FinancialInbox() {
             className={`text-xs px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
               activeTab === tab
                 ? "bg-app-accent text-white"
-                : "bg-app-card border border-white/5 text-app-muted hover:text-gray-900 dark:hover:text-white"
+                : "bg-app-card border border-white/5 text-app-muted hover:text-white"
             }`}
           >
             {tab}
@@ -296,7 +296,7 @@ export default function FinancialInbox() {
                           <Icon className={`w-4 h-4 ${cfg.iconCls}`} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          <p className="text-sm font-medium text-white">
                             {item.title}
                           </p>
                           <p className="text-xs text-app-muted mt-0.5">{item.description}</p>
@@ -309,7 +309,7 @@ export default function FinancialInbox() {
                             </button>
                             <button
                               onClick={() => dismiss(item.id)}
-                              className="text-xs text-app-muted hover:text-gray-900 dark:hover:text-white px-2"
+                              className="text-xs text-app-muted hover:text-white px-2"
                             >
                               Dismiss
                             </button>

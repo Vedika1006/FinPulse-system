@@ -187,7 +187,7 @@ export default function Subscriptions() {
     <div className="mx-auto max-w-2xl p-4">
       {/* Header */}
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-app-ink dark:text-white">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
           Subscriptions & Recurring Payments
         </h2>
         <p className="text-sm text-app-muted mt-1">
