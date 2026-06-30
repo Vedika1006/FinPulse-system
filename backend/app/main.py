@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from app.database import engine, Base
 from app import models
-from app.routes import auth, expenses, budgets, analytics, ai, income, goals, receipts
+from app.routes import auth, expenses, budgets, analytics, ai, income, goals, receipts, imports
 from app.services.categorization_service import _load as warm_faiss
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -153,6 +153,7 @@ app.include_router(ai.router)
 app.include_router(income.router)
 app.include_router(goals.router)
 app.include_router(receipts.router)
+app.include_router(imports.router)
 
 
 @app.get("/")

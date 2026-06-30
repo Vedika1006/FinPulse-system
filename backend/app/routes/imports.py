@@ -1,0 +1,147 @@
+"""
+CSV import endpoints.
+
+POST /import/csv/preview  — parse + annotate without saving to DB
+POST /import/csv/confirm  — bulk insert approved transactions
+"""
+
+from datetime import datetime, timedelta
+
+from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
+
+from app.core.security import get_current_user
+from app.database import get_db
+from app.models import Expense
+from app.schemas import ImportConfirmRequest, ImportConfirmResponse, ImportPreviewResponse
+from app.services.csv_import_service import (
+    categorize_parsed_transactions,
+    detect_duplicates,
+    parse_generic_csv,
+    parse_hdfc_csv,
+    parse_icici_csv,
+)
+
+router = APIRouter(prefix="/import", tags=["Import"])
+
+
+@router.post("/csv/preview", response_model=ImportPreviewResponse)
+async def preview_csv_import(
+    file: UploadFile = File(...),
+    bank: str = Form(...),
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user),
+):
+    """
+    Parse uploaded CSV, run duplicate detection and AI categorization.
+    Returns a preview — nothing is written to the database.
+    """
+    file_bytes = await file.read()
+    bank_key = (bank or "other").strip().lower()
+
+    try:
+        if bank_key == "icici":
+            parsed = parse_icici_csv(file_bytes)
+        elif bank_key == "hdfc":
+            parsed = parse_hdfc_csv(file_bytes)
+        else:
+            parsed = parse_generic_csv(file_bytes)
+    except ValueError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+    except Exception as exc:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": f"Could not parse the uploaded file: {exc}"},
+        )
+
+    if not parsed:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "detail": "No transactions found in the uploaded file. "
+                          "Please check that you downloaded the full CSV statement."
+            },
+        )
+
+    # Split debits (expenses) vs credits (potential income)
+    debits = [t for t in parsed if t.get("type") == "debit"]
+    credits = [t for t in parsed if t.get("type") == "credit"]
+
+    # Fetch last 90 days of this user's expenses for duplicate comparison
+    cutoff = datetime.utcnow() - timedelta(days=90)
+    existing = (
+        db.query(Expense)
+        .filter(Expense.user_id == user_id, Expense.created_at >= cutoff)
+        .all()
+    )
+
+    debits = detect_duplicates(debits, existing)
+    debits = categorize_parsed_transactions(debits)
+
+    duplicate_count = sum(1 for t in debits if t.get("is_duplicate"))
+
+    return {
+        "total_found": len(debits),
+        "duplicate_count": duplicate_count,
+        "transactions": debits,
+        "income_entries": credits,
+    }
+
+
+@router.post("/csv/confirm", response_model=ImportConfirmResponse)
+def confirm_csv_import(
+    payload: ImportConfirmRequest,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user),
+):
+    """
+    Bulk insert approved transactions into the expenses table.
+    """
+    imported = 0
+    skipped = 0
+
+    for txn in payload.transactions:
+        if payload.skip_duplicates and txn.get("is_duplicate"):
+            skipped += 1
+            continue
+
+        try:
+            amount = float(txn.get("amount", 0))
+            if amount <= 0:
+                skipped += 1
+                continue
+
+            # Parse date — try ISO first then common Indian formats
+            date_val = None
+            raw_date = txn.get("date")
+            if raw_date:
+                for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d-%b-%Y", "%d/%m/%y"):
+                    try:
+                        date_val = datetime.strptime(str(raw_date), fmt)
+                        break
+                    except ValueError:
+                        continue
+
+            category = (
+                txn.get("category") or txn.get("suggested_category") or "other"
+            ).strip().lower()
+            if not category:
+                category = "other"
+
+            new_expense = Expense(
+                amount=amount,
+                category=category,
+                description=str(txn.get("description", "")).strip(),
+                date=date_val,
+                user_id=user_id,
+            )
+            db.add(new_expense)
+            imported += 1
+
+        except Exception:
+            skipped += 1
+            continue
+
+    db.commit()
+    return {"imported_count": imported, "skipped_count": skipped}
