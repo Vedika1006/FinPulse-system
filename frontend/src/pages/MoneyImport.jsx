@@ -288,7 +288,7 @@ export default function MoneyImport() {
             </div>
 
             {/* Transaction list */}
-            <div className="max-h-96 overflow-y-auto flex flex-col gap-2 mb-4 pr-1">
+            <div className="max-h-72 overflow-y-auto flex flex-col gap-2 mb-3 pr-1">
               {previewData.transactions.map((txn, i) => (
                 <div
                   key={i}
@@ -330,19 +330,63 @@ export default function MoneyImport() {
               )}
             </div>
 
+            {/* Income credits section — shown when the bank CSV contains salary/credit entries */}
+            {previewData.income_entries && previewData.income_entries.length > 0 && (
+              <div className="mb-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-2">
+                  {previewData.income_entries.length} income credit{previewData.income_entries.length !== 1 ? "s" : ""} detected — will be imported automatically
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {previewData.income_entries.slice(0, 5).map((entry, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-500/15 rounded-lg px-3 py-2"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-gray-700 dark:text-white truncate">{entry.description}</p>
+                        <p className="text-xs text-gray-500 dark:text-app-muted">{entry.date}</p>
+                      </div>
+                      <p className="text-xs font-mono text-emerald-700 dark:text-emerald-400 flex-shrink-0 ml-3">
+                        +₹{Number(entry.amount).toLocaleString("en-IN")}
+                      </p>
+                    </div>
+                  ))}
+                  {previewData.income_entries.length > 5 && (
+                    <p className="text-xs text-app-muted text-center py-1">
+                      +{previewData.income_entries.length - 5} more income entries
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Action bar */}
-            <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-white/5">
-              <p className="text-xs text-app-muted">
-                {selectedCount} of {previewData.total_found} selected
-              </p>
-              <button
-                onClick={handleConfirm}
-                disabled={selectedCount === 0}
-                className="bg-app-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-app-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Import {selectedCount} transaction{selectedCount !== 1 ? "s" : ""}
-              </button>
-            </div>
+            {(() => {
+              const incomeCount = previewData.income_entries?.length ?? 0;
+              const btnLabel =
+                selectedCount > 0 && incomeCount > 0
+                  ? `Import ${selectedCount} transaction${selectedCount !== 1 ? "s" : ""} + income`
+                  : selectedCount > 0
+                  ? `Import ${selectedCount} transaction${selectedCount !== 1 ? "s" : ""}`
+                  : incomeCount > 0
+                  ? `Import ${incomeCount} income entr${incomeCount !== 1 ? "ies" : "y"}`
+                  : "Nothing selected";
+              return (
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-white/5">
+                  <p className="text-xs text-app-muted">
+                    {selectedCount} of {previewData.total_found} expenses selected
+                    {incomeCount > 0 && ` · ${incomeCount} income credit${incomeCount !== 1 ? "s" : ""}`}
+                  </p>
+                  <button
+                    onClick={handleConfirm}
+                    disabled={selectedCount === 0 && incomeCount === 0}
+                    className="bg-app-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-app-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {btnLabel}
+                  </button>
+                </div>
+              );
+            })()}
 
             {uploadError && (
               <div className="mt-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-400/20 rounded-xl p-3 text-sm text-red-600 dark:text-red-400">

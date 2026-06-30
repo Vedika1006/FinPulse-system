@@ -5,28 +5,41 @@ import API from "../api/axios";
 
 // ── Description display cleaning ────────────────────────────────────────────
 
+const _PAYMENT_MODES = new Set([
+  "neft", "rtgs", "imps", "upi", "mmt", "achd", "achc", "clg", "pos", "atm",
+  "atw", "int", "trf", "bil", "ecs", "cr", "dr",
+]);
+
 function cleanDisplayName(desc) {
   if (!desc) return desc;
   let s = desc.trim();
-  // Strip leading payment mode prefix
-  s = s.replace(/^(NEFT|RTGS|IMPS|UPI|MMT|ACH\s*[DC]|CLG|POS|ATM\s*WDL?)[/\s\-]+/i, "").trim();
-  // Split on slashes and drop pure-numeric or IFSC tokens
-  const parts = s.split("/").map((p) => p.trim()).filter(Boolean);
-  const meaningful = parts.filter(
-    (p) => !/^\d+$/.test(p) && !/^[A-Z]{4}0[A-Z0-9]{6}$/i.test(p)
-  );
-  s = (meaningful.length > 0 ? meaningful : parts).join(" ");
-  // Remove UPI VPA handles (word@word)
-  s = s.replace(/\b\w+@\w+\b/g, "").trim();
-  // Remove long digit sequences
-  s = s.replace(/\b\d{6,}\b/g, "").trim();
-  // Collapse spaces
-  s = s.replace(/\s+/g, " ").trim();
-  // Title-case if fully uppercase
-  if (s && s === s.toUpperCase()) {
-    s = s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  // 1. Strip leading payment-mode prefix (case-insensitive)
+  s = s.replace(/^(NEFT|RTGS|IMPS|UPI|MMT|ACH\s*[DC]|CLG|POS|ATM\s*WDL?|ATW|INT|TRF|BIL|ECS)[/\s\-]+/i, "").trim();
+  // 2. Split on BOTH slash and dash delimiters
+  const parts = s.split(/[/\-]+/).map((p) => p.trim()).filter(Boolean);
+  // 3. Filter noise tokens
+  const cleaned = parts
+    .filter((p) => {
+      const pl = p.toLowerCase();
+      if (/^[\d,.]+$/.test(p)) return false;           // pure number/amount
+      if (/^\w+@\w+$/.test(p)) return false;            // UPI VPA handle
+      if (/^[A-Z]{4}0[A-Z0-9]{6}$/i.test(p)) return false;  // IFSC code
+      if (_PAYMENT_MODES.has(pl)) return false;          // standalone mode word
+      if (pl === "com") return false;                    // payment-network suffix
+      return true;
+    })
+    .map((p) => p.replace(/\b\d{6,}\b/g, "").trim())
+    .filter(Boolean);
+  let result = cleaned.join(" ").trim();
+  // 4. Strip trailing " com" that survived inside a multi-word merchant name
+  result = result.replace(/\s+com\s*$/i, "").trim();
+  // 5. Collapse extra whitespace
+  result = result.replace(/\s+/g, " ").trim();
+  // 6. Title-case (handles both fully-uppercase raw bank strings and lowercase stored strings)
+  if (result && (result === result.toUpperCase() || result === result.toLowerCase())) {
+    result = result.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
   }
-  return s || desc.trim();
+  return result || desc.trim();
 }
 
 // ── Recurring detection ─────────────────────────────────────────────────────
