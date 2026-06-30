@@ -131,6 +131,11 @@ class BudgetResponse(BaseModel):
     category: str
     amount: float
     month: str
+    rollover_enabled: bool = False
+
+
+class BudgetRolloverUpdate(BaseModel):
+    rollover_enabled: bool
 
 
 class BudgetUpdate(BaseModel):
@@ -171,6 +176,46 @@ class IncomeResponse(BaseModel):
     id: int
     month: str
     amount: float
+
+
+class AutoSaveApplied(BaseModel):
+    goal_name: str
+    amount: float
+
+
+class IncomeWithAutoSavesResponse(BaseModel):
+    id: int
+    month: str
+    amount: float
+    auto_saves: list[AutoSaveApplied] = []
+
+
+class AutoSaveRuleCreate(BaseModel):
+    goal_id: int
+    type: str   # "fixed" | "percent"
+    value: float
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str) -> str:
+        if v not in ("fixed", "percent"):
+            raise ValueError("type must be 'fixed' or 'percent'")
+        return v
+
+    @field_validator("value")
+    @classmethod
+    def validate_value(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("value must be greater than 0")
+        return v
+
+
+class AutoSaveRuleResponse(BaseModel):
+    id: int
+    goal_id: int
+    goal_name: str
+    type: str
+    value: float
 
 
 class HealthScoreBreakdown(BaseModel):

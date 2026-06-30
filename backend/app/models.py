@@ -1,8 +1,7 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Boolean, Column, Integer, String
 from app.database import Base
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from datetime import datetime
 from sqlalchemy import DateTime
 from sqlalchemy import UniqueConstraint
@@ -43,6 +42,7 @@ class Budget(Base):
     limit = Column("limit_amount", Float, nullable=True)
     month = Column(String, nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    rollover_enabled = Column(Boolean, default=False, nullable=False, server_default="0")
 
     user = relationship("User")
 
@@ -105,3 +105,17 @@ class Goal(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     user = relationship("User")
+
+
+class AutoSaveRule(Base):
+    __tablename__ = "auto_save_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    goal_id = Column(Integer, ForeignKey("goals.id"), nullable=False, index=True)
+    type = Column(String, nullable=False)   # "fixed" | "percent"
+    value = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User")
+    goal = relationship("Goal")

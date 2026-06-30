@@ -338,6 +338,14 @@ const Dashboard = () => {
       const res = await API.post("/income/", { month, amount: amt });
       setIncome(res.data || null);
       showToast("Income saved", "success");
+      // Show one toast per auto-save rule that was applied
+      const autoSaves = res.data?.auto_saves ?? [];
+      autoSaves.forEach((s) => {
+        showToast(
+          `₹${Number(s.amount).toLocaleString("en-IN")} auto-saved toward ${s.goal_name}`,
+          "success"
+        );
+      });
       setIncomeModal(false);
       setIncomeAmount("");
     } catch {

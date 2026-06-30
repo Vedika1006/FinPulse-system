@@ -25,3 +25,9 @@ export async function getBudgetSuggestions() {
   const res = await API.get("/budgets/suggestions");
   return res.data;
 }
+
+/** PATCH /budgets/{id}/rollover */
+export async function updateBudgetRollover(id, rollover_enabled) {
+  const res = await API.patch(`/budgets/${id}/rollover`, { rollover_enabled });
+  return res.data;
+}

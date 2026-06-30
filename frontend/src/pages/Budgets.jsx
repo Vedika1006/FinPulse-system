@@ -7,7 +7,9 @@ import {
   getBudgetVsActual,
   deleteBudget,
   getBudgetSuggestions,
+  updateBudgetRollover,
 } from "../api/budgets";
+import { getAutoSaveRules, createAutoSaveRule, deleteAutoSaveRule } from "../api/autoSaveRules";
 import { getGoals, createGoal, deleteGoal, updateGoal } from "../api/goals";
 import { getHealthScore } from "../api/dashboard";
 import { currentMonthParam } from "../utils/month";
@@ -75,6 +77,14 @@ export default function Budgets() {
   const [suggestionsLoading,  setSuggestionsLoading]  = useState(false);
   const [suggestEditAmounts,  setSuggestEditAmounts]  = useState({});
   const [acceptingSuggestion, setAcceptingSuggestion] = useState(null);
+
+  // ── Budget Rules tab ────────────────────────────────────
+  const [togglingRollover,  setTogglingRollover]  = useState(null); // budget id
+  const [autoSaveRules,     setAutoSaveRules]     = useState([]);
+  const [autoSaveLoading,   setAutoSaveLoading]   = useState(false);
+  const [autoSaveForm,      setAutoSaveForm]      = useState({ goal_id: "", type: "fixed", value: "" });
+  const [savingAutoRule,    setSavingAutoRule]     = useState(false);
+  const [deletingRuleId,    setDeletingRuleId]    = useState(null);
 
   const titleCaseCategory = (value) =>
     String(value || "").split(/[\s_-]+/g).filter(Boolean)
@@ -265,6 +275,77 @@ export default function Budgets() {
     }
   };
 
+  // Previous month label for rollover note ("May", "April", etc.)
+  const prevMonthLabel = useMemo(() => {
+    const [y, m] = month.split("-").map(Number);
+    return new Date(y, m - 2).toLocaleString("default", { month: "long" });
+  }, [month]);
+
+  // Load auto-save rules whenever Budget Rules tab is opened
+  useEffect(() => {
+    if (budgetTab !== "budget-rules") return;
+    setAutoSaveLoading(true);
+    getAutoSaveRules()
+      .then(setAutoSaveRules)
+      .catch(() => showToast("Could not load auto-save rules", "error"))
+      .finally(() => setAutoSaveLoading(false));
+  }, [budgetTab]); // eslint-disable-line
+
+  const handleRolloverToggle = async (budget) => {
+    setTogglingRollover(budget.id);
+    try {
+      await updateBudgetRollover(budget.id, !budget.rollover_enabled);
+      await load();
+      showToast(
+        `Rollover ${!budget.rollover_enabled ? "enabled" : "disabled"} for ${titleCaseCategory(budget.category)}`,
+        "success"
+      );
+    } catch {
+      showToast("Could not update rollover setting", "error");
+    } finally {
+      setTogglingRollover(null);
+    }
+  };
+
+  const handleAddAutoSaveRule = async (e) => {
+    e.preventDefault();
+    const val = parseFloat(autoSaveForm.value);
+    if (!autoSaveForm.goal_id || Number.isNaN(val) || val <= 0) return;
+    if (autoSaveForm.type === "percent" && val > 100) {
+      showToast("Percent value cannot exceed 100", "error");
+      return;
+    }
+    setSavingAutoRule(true);
+    try {
+      const rule = await createAutoSaveRule({
+        goal_id: Number(autoSaveForm.goal_id),
+        type: autoSaveForm.type,
+        value: val,
+      });
+      setAutoSaveRules((prev) => [rule, ...prev]);
+      setAutoSaveForm({ goal_id: "", type: "fixed", value: "" });
+      showToast("Auto-save rule added", "success");
+    } catch (err) {
+      const msg = err.response?.data?.detail || "Could not add rule";
+      showToast(typeof msg === "string" ? msg : "Could not add rule", "error");
+    } finally {
+      setSavingAutoRule(false);
+    }
+  };
+
+  const handleDeleteAutoSaveRule = async (id) => {
+    setDeletingRuleId(id);
+    try {
+      await deleteAutoSaveRule(id);
+      setAutoSaveRules((prev) => prev.filter((r) => r.id !== id));
+      showToast("Rule removed", "success");
+    } catch {
+      showToast("Could not remove rule", "error");
+    } finally {
+      setDeletingRuleId(null);
+    }
+  };
+
   const totalBudget    = vs ? Number(vs.total_budget)    : 0;
   const totalSpent     = vs ? Number(vs.total_spent)     : 0;
   const totalRemaining = vs ? Number(vs.total_remaining) : 0;
@@ -430,6 +511,7 @@ export default function Budgets() {
         {[
           { id: "my-budgets",   label: "My Budgets" },
           { id: "ai-suggested", label: "AI Suggested" },
+          { id: "budget-rules", label: "Budget Rules" },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -542,6 +624,192 @@ export default function Budgets() {
         </>
       )}
 
+      {/* ── Budget Rules tab ─────────────────────────── */}
+      {budgetTab === "budget-rules" && (
+        <div className="space-y-8">
+
+          {/* ── Rollover section ──────────────────────── */}
+          <div>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Unused Budget Rollover</h2>
+            <p className="mt-0.5 text-sm text-gray-500 dark:text-app-muted">
+              When enabled, any unspent budget from the previous month is added to next month&apos;s limit automatically.
+              Overspending never reduces a future month&apos;s budget.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              {monthBudgetRows.length === 0 ? (
+                <Card>
+                  <CardBody className="py-6 text-center">
+                    <p className="text-sm text-gray-400 dark:text-app-muted">
+                      No budgets set for {month}. Create a budget on the{" "}
+                      <button
+                        type="button"
+                        onClick={() => setBudgetTab("my-budgets")}
+                        className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
+                      >
+                        My Budgets
+                      </button>{" "}
+                      tab first.
+                    </p>
+                  </CardBody>
+                </Card>
+              ) : (
+                monthBudgetRows.map((budget) => (
+                  <div
+                    key={budget.id}
+                    className="flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 dark:border-white/[0.06] dark:bg-app-card"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {titleCaseCategory(budget.category)}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-app-muted">
+                        Limit: {formatINR(budget.amount)} / month
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500 dark:text-app-muted">
+                        {budget.rollover_enabled ? "Rollover on" : "Rollover off"}
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={budget.rollover_enabled}
+                        disabled={togglingRollover === budget.id}
+                        onClick={() => handleRolloverToggle(budget)}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${
+                          budget.rollover_enabled
+                            ? "bg-cyan-500"
+                            : "bg-gray-200 dark:bg-white/20"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ${
+                            budget.rollover_enabled ? "translate-x-4" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* ── Auto-Save Rules section ───────────────── */}
+          <div>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Auto-Save Rules</h2>
+            <p className="mt-0.5 text-sm text-gray-500 dark:text-app-muted">
+              Each time you log new income, these rules automatically allocate a portion toward your savings goals.
+              Nothing moves between real bank accounts — this only updates goal progress inside FinPulse.
+            </p>
+
+            {autoSaveLoading ? (
+              <div className="mt-4 space-y-3">
+                <CardSkeleton /><CardSkeleton />
+              </div>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {autoSaveRules.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-gray-200 px-4 py-4 text-sm text-gray-400 dark:border-white/[0.08] dark:text-app-muted">
+                    No auto-save rules yet. Add one below.
+                  </p>
+                ) : (
+                  autoSaveRules.map((rule) => (
+                    <motion.div
+                      key={rule.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 dark:border-white/[0.06] dark:bg-app-card"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{rule.goal_name}</p>
+                        <p className="text-xs text-gray-400 dark:text-app-muted">
+                          {rule.type === "fixed"
+                            ? `${formatINR(rule.value)} allocated on each new income`
+                            : `${rule.value}% of income allocated`}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAutoSaveRule(rule.id)}
+                        disabled={deletingRuleId === rule.id}
+                        className="text-xs font-semibold text-red-500 hover:text-red-600 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+                      >
+                        {deletingRuleId === rule.id ? "Removing…" : "Remove"}
+                      </button>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Add rule form */}
+            {goals.length === 0 ? (
+              <p className="mt-4 rounded-xl border border-dashed border-gray-200 px-4 py-4 text-sm text-gray-400 dark:border-white/[0.08] dark:text-app-muted">
+                Create a savings goal first before adding auto-save rules.
+              </p>
+            ) : (
+              <form
+                onSubmit={handleAddAutoSaveRule}
+                className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-white/[0.06] dark:bg-white/[0.03]"
+              >
+                <p className="mb-3 text-sm font-medium text-gray-700 dark:text-app-subtle">Add a new rule</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-app-muted">Goal</label>
+                    <select
+                      value={autoSaveForm.goal_id}
+                      onChange={(e) => setAutoSaveForm((f) => ({ ...f, goal_id: e.target.value }))}
+                      required
+                      className={fieldClass}
+                    >
+                      <option value="">Select goal…</option>
+                      {goals.map((g) => (
+                        <option key={g.id} value={g.id}>{g.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-app-muted">Type</label>
+                    <select
+                      value={autoSaveForm.type}
+                      onChange={(e) => setAutoSaveForm((f) => ({ ...f, type: e.target.value }))}
+                      className={fieldClass}
+                    >
+                      <option value="fixed">Fixed amount (₹)</option>
+                      <option value="percent">Percent of income (%)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-app-muted">
+                      {autoSaveForm.type === "fixed" ? "Amount (₹)" : "Percent (%)"}
+                    </label>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      max={autoSaveForm.type === "percent" ? 100 : undefined}
+                      value={autoSaveForm.value}
+                      onChange={(e) => setAutoSaveForm((f) => ({ ...f, value: e.target.value }))}
+                      placeholder={autoSaveForm.type === "fixed" ? "e.g. 2000" : "e.g. 10"}
+                      required
+                      className={fieldClass}
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 flex justify-end">
+                  <button type="submit" disabled={savingAutoRule} className={btnPrimary}>
+                    {savingAutoRule ? "Adding…" : "Add rule"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── My Budgets tab ───────────────────────────── */}
       {budgetTab === "my-budgets" && (
         <>
@@ -609,6 +877,11 @@ export default function Budgets() {
                         <span className="text-gray-500 dark:text-app-muted">Limit</span>
                         <span className="font-medium tabular-nums text-gray-700 dark:text-app-subtle">{formatINR(row.budget)}</span>
                       </div>
+                      {row.rollover_amount > 0 && (
+                        <p className="text-xs text-cyan-600 dark:text-cyan-400">
+                          Includes {formatINR(row.rollover_amount)} rolled over from {prevMonthLabel}
+                        </p>
+                      )}
                       <div>
                         <div className="mb-1.5 flex justify-between text-xs text-gray-400 dark:text-app-muted">
                           <span>Usage</span>
