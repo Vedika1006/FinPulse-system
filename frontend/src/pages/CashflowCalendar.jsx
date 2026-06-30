@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Info } from "lucide-react";
 import { AreaChart, Area, Tooltip, ResponsiveContainer } from "recharts";
 import API from "../api/axios";
 import { getGoals } from "../api/goals";
@@ -74,13 +74,13 @@ function projectEventsForMonth(recurring, year, month) {
     const gap = sub.avgGap * 86_400_000;
     let anchor = new Date(sub.nextDue);
 
-    // Walk anchor backward until it is at or before monthStart
+    // Arithmetic-shift anchor backward to at or before monthStart
     if (anchor > monthStart) {
       const steps = Math.ceil((anchor.getTime() - monthStart.getTime()) / gap);
       anchor = new Date(anchor.getTime() - steps * gap);
     }
 
-    // Emit all occurrences within [monthStart, monthEnd]
+    // Walk forward and emit every occurrence in [monthStart, monthEnd]
     let cur = new Date(anchor);
     while (cur <= monthEnd) {
       if (cur >= monthStart) {
@@ -117,11 +117,11 @@ function buildCalendarWeeks(year, month) {
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const DOT_COLOR = {
-  income: "bg-app-accent",
-  goal: "bg-violet-400",
-  bill: "bg-amber-400",
+  income:       "bg-app-accent",
+  goal:         "bg-violet-400",
+  bill:         "bg-amber-400",
   subscription: "bg-blue-300",
-  budget: "bg-amber-300",
+  budget:       "bg-amber-300",
 };
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -134,14 +134,15 @@ export default function CashflowCalendar() {
     month: today.getMonth(),
   });
 
-  const todayStr = today.toISOString().slice(0, 10);
+  // Default selected day = today
+  const todayStr = useMemo(() => today.toISOString().slice(0, 10), [today]);
   const [selectedDay, setSelectedDay] = useState(todayStr);
 
-  const [expenses, setExpenses]     = useState([]);
-  const [income, setIncome]         = useState(0);
-  const [goals, setGoals]           = useState([]);
-  const [totalBudget, setTotalBudget] = useState(0);
-  const [loading, setLoading]       = useState(true);
+  const [expenses, setExpenses]         = useState([]);
+  const [income, setIncome]             = useState(0);
+  const [goals, setGoals]               = useState([]);
+  const [totalBudget, setTotalBudget]   = useState(0);
+  const [loading, setLoading]           = useState(true);
 
   // Fetch expenses, budgets, goals once
   useEffect(() => {
@@ -158,7 +159,7 @@ export default function CashflowCalendar() {
     });
   }, []);
 
-  // Fetch income for the displayed month
+  // Re-fetch income whenever the displayed month changes
   useEffect(() => {
     const mStr = `${currentMonth.year}-${String(currentMonth.month + 1).padStart(2, "0")}`;
     API.get(`/income/${mStr}/`)
@@ -192,7 +193,7 @@ export default function CashflowCalendar() {
   const calendarEvents = useMemo(() => {
     const events = [];
 
-    // Income on the 1st
+    // Income on the 1st — only if real income data exists for this month
     if (income > 0) {
       events.push({
         id: `income-${monthStr}`,
@@ -203,7 +204,7 @@ export default function CashflowCalendar() {
       });
     }
 
-    // Budget reset on the 1st
+    // Budget reset — system event, always on the 1st
     events.push({
       id: `budget-${monthStr}`,
       date: `${monthStr}-01`,
@@ -219,8 +220,9 @@ export default function CashflowCalendar() {
     for (const g of goals) {
       const deadline = g.deadline || g.target_date || g.due_date;
       if (deadline && String(deadline).startsWith(monthStr)) {
-        const remaining = Number(g.target_amount || g.amount || 0)
-          - Number(g.current_amount || g.saved_amount || 0);
+        const remaining =
+          Number(g.target_amount || g.amount || 0) -
+          Number(g.current_amount || g.saved_amount || 0);
         events.push({
           id: `goal-${g.id}`,
           date: String(deadline).slice(0, 10),
@@ -244,7 +246,7 @@ export default function CashflowCalendar() {
     return map;
   }, [calendarEvents]);
 
-  // Expenses filtered to the displayed month
+  // Expenses for the displayed month
   const monthExpenses = useMemo(
     () =>
       expenses.filter((e) => {
@@ -273,8 +275,16 @@ export default function CashflowCalendar() {
   const safeToSpendPerDay =
     daysRemaining > 0 ? Math.round(availableToSpend / daysRemaining) : 0;
 
-  // Projected balance chart
+  // Projected balance — day-by-day running total
   const balanceData = useMemo(() => {
+    // Pre-index actual expenses by normalized date string (slice to YYYY-MM-DD)
+    const actualByDate = {};
+    for (const e of monthExpenses) {
+      const ds = (e.date || e.created_at || "").slice(0, 10);
+      if (!actualByDate[ds]) actualByDate[ds] = 0;
+      actualByDate[ds] += Number(e.amount || 0);
+    }
+
     const data = [];
     let balance = income;
 
@@ -284,11 +294,10 @@ export default function CashflowCalendar() {
       const isPastOrToday = dayDate <= today;
 
       if (isPastOrToday) {
-        const dayExp = monthExpenses.filter(
-          (e) => (e.date || e.created_at?.slice(0, 10)) === dateStr
-        );
-        balance -= dayExp.reduce((s, e) => s + Number(e.amount || 0), 0);
+        // Subtract actual recorded expenses for this day
+        balance -= actualByDate[dateStr] || 0;
       } else {
+        // Subtract projected bills and subscriptions
         const dayEv = (eventsByDate[dateStr] || []).filter(
           (e) => e.type !== "income" && e.type !== "budget" && e.type !== "goal"
         );
@@ -300,7 +309,7 @@ export default function CashflowCalendar() {
     return data;
   }, [daysInMonth, income, monthStr, year, month, monthExpenses, eventsByDate, today]);
 
-  // Selected day
+  // Selected day detail
   const selectedDayEvents = selectedDay ? (eventsByDate[selectedDay] || []) : [];
   const selectedDayTotal = selectedDayEvents
     .filter((e) => e.type !== "income" && e.type !== "budget")
@@ -313,6 +322,8 @@ export default function CashflowCalendar() {
     : "";
 
   const weeks = useMemo(() => buildCalendarWeeks(year, month), [year, month]);
+
+  const isSparseMonth = calendarEvents.length < 3;
 
   // ── Loading ──────────────────────────────────────────────────────────────────
 
@@ -362,14 +373,14 @@ export default function CashflowCalendar() {
         </p>
       </div>
 
-      {/* Summary strip */}
+      {/* Summary strip — FIX 1: uniform neutral value style, ₹0 not "—" */}
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div className="rounded-xl bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 p-3">
           <p className="text-xs text-gray-500 dark:text-app-muted uppercase tracking-wide mb-1">
             Expected income
           </p>
-          <p className="text-xl font-bold font-mono text-app-accent">
-            {income > 0 ? `₹${income.toLocaleString("en-IN")}` : "—"}
+          <p className="text-xl font-mono font-semibold text-gray-900 dark:text-white">
+            ₹{income.toLocaleString("en-IN")}
           </p>
         </div>
 
@@ -377,10 +388,8 @@ export default function CashflowCalendar() {
           <p className="text-xs text-gray-500 dark:text-app-muted uppercase tracking-wide mb-1">
             Committed
           </p>
-          <p className="text-xl font-bold font-mono text-amber-500">
-            {monthlyCommitted > 0
-              ? `₹${monthlyCommitted.toLocaleString("en-IN")}`
-              : "—"}
+          <p className="text-xl font-mono font-semibold text-gray-900 dark:text-white">
+            ₹{monthlyCommitted.toLocaleString("en-IN")}
           </p>
         </div>
 
@@ -388,10 +397,8 @@ export default function CashflowCalendar() {
           <p className="text-xs text-gray-500 dark:text-app-muted uppercase tracking-wide mb-1">
             Safe to spend
           </p>
-          <p className="text-xl font-bold font-mono text-gray-900 dark:text-white">
-            {income > 0
-              ? `₹${safeToSpendPerDay.toLocaleString("en-IN")}/day`
-              : "—"}
+          <p className="text-xl font-mono font-semibold text-gray-900 dark:text-white">
+            ₹{safeToSpendPerDay.toLocaleString("en-IN")}/day
           </p>
         </div>
       </div>
@@ -417,6 +424,33 @@ export default function CashflowCalendar() {
         </button>
       </div>
 
+      {/* FIX 3 — Dot legend */}
+      <div className="flex flex-wrap items-center gap-4 mb-3 text-xs text-app-muted">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-app-accent" /> Income
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-amber-400" /> Bills
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-blue-300" /> Subscriptions
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-violet-400" /> Goals
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-red-400" /> Risk
+        </span>
+      </div>
+
+      {/* FIX 2 — Sparse data banner */}
+      {isSparseMonth && (
+        <div className="flex items-center gap-2 bg-app-accent/5 border border-app-accent/15 rounded-xl p-3 mb-4 text-sm text-app-muted">
+          <Info className="w-4 h-4 text-app-accent flex-shrink-0" />
+          Your calendar will fill in as you add income, bills, and recurring expenses. Right now we&apos;re showing what we know.
+        </div>
+      )}
+
       {/* Calendar grid */}
       <AnimatePresence mode="wait">
         <motion.div
@@ -439,62 +473,69 @@ export default function CashflowCalendar() {
             ))}
           </div>
 
-          {/* Weeks */}
-          {weeks.map((week, wi) => (
-            <div key={wi} className="grid grid-cols-7">
-              {week.map((day, di) => {
-                if (!day) return <div key={di} className="aspect-square" />;
+          {/* Weeks — FIX 2: h-12 cells instead of aspect-square, tighter gap */}
+          <div className="flex flex-col gap-0.5">
+            {weeks.map((week, wi) => (
+              <div key={wi} className="grid grid-cols-7 gap-0.5">
+                {week.map((day, di) => {
+                  if (!day) {
+                    return <div key={di} className="h-12" />;
+                  }
 
-                const dateStr = `${monthStr}-${String(day).padStart(2, "0")}`;
-                const dayEvents = eventsByDate[dateStr] || [];
-                const isToday =
-                  isCurrentMonth &&
-                  today.getDate() === day &&
-                  today.getMonth() === month &&
-                  today.getFullYear() === year;
-                const isSelected = selectedDay === dateStr;
+                  const dateStr = `${monthStr}-${String(day).padStart(2, "0")}`;
+                  const dayEvents = eventsByDate[dateStr] || [];
+                  const isToday =
+                    isCurrentMonth &&
+                    today.getDate() === day &&
+                    today.getMonth() === month &&
+                    today.getFullYear() === year;
+                  const isSelected = selectedDay === dateStr;
 
-                return (
-                  <div
-                    key={di}
-                    onClick={() => setSelectedDay(dateStr)}
-                    className={`aspect-square rounded-lg p-1.5 cursor-pointer transition-colors ${
-                      isToday ? "ring-2 ring-app-accent ring-inset" : ""
-                    } ${
-                      isSelected
-                        ? "bg-app-accent/10"
-                        : "hover:bg-gray-50 dark:hover:bg-white/5"
-                    }`}
-                  >
-                    <p
-                      className={`text-xs leading-none ${
-                        isToday
-                          ? "text-app-accent font-semibold"
-                          : "text-gray-700 dark:text-gray-300"
+                  return (
+                    <div
+                      key={di}
+                      onClick={() => setSelectedDay(dateStr)}
+                      // FIX 4: today = teal day-number text; selected = bg tint; no conflicting ring
+                      className={`h-12 rounded-lg p-1.5 cursor-pointer transition-colors ${
+                        isSelected
+                          ? "bg-app-accent/10"
+                          : "hover:bg-gray-50 dark:hover:bg-white/5"
                       }`}
                     >
-                      {day}
-                    </p>
-                    <div className="flex gap-0.5 mt-1 flex-wrap">
-                      {dayEvents.slice(0, 3).map((ev, ei) => (
-                        <span
-                          key={ei}
-                          className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                            DOT_COLOR[ev.type] || "bg-gray-300"
-                          }`}
-                        />
-                      ))}
-                      {dayEvents.length > 3 && (
-                        <span className="text-[8px] text-gray-400 dark:text-app-muted leading-none mt-px">
-                          +{dayEvents.length - 3}
-                        </span>
+                      <p
+                        className={`text-xs leading-none ${
+                          isToday
+                            ? "text-app-accent font-semibold"
+                            : "text-gray-700 dark:text-gray-300"
+                        }`}
+                      >
+                        {day}
+                      </p>
+                      {/* Today marker dot — visible when today ≠ selected so they look distinct */}
+                      {isToday && !isSelected && (
+                        <span className="block w-1 h-1 rounded-full bg-app-accent mt-0.5" />
                       )}
+                      <div className="flex gap-0.5 mt-0.5 flex-wrap">
+                        {dayEvents.slice(0, 3).map((ev, ei) => (
+                          <span
+                            key={ei}
+                            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                              DOT_COLOR[ev.type] || "bg-gray-300"
+                            }`}
+                          />
+                        ))}
+                        {dayEvents.length > 3 && (
+                          <span className="text-[8px] text-gray-400 dark:text-app-muted leading-none mt-px">
+                            +{dayEvents.length - 3}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </motion.div>
       </AnimatePresence>
 
@@ -553,7 +594,7 @@ export default function CashflowCalendar() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Projected balance chart */}
+      {/* Projected balance chart — FIX 5: robust date comparison via actualByDate map */}
       <div className="bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 rounded-2xl p-4">
         <p className="text-xs font-medium text-gray-500 dark:text-app-muted uppercase tracking-wide mb-3">
           Projected balance through {monthLabel}
