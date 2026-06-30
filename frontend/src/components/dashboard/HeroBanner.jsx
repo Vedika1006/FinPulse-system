@@ -90,14 +90,14 @@ const HeroBanner = ({ displayName, health, cashflowPrediction, formatCurrency, i
               </div>
               <div>
                 <p className="text-xs text-app-muted uppercase tracking-wide">Safe to spend today</p>
-                <p className="text-2xl font-bold font-mono text-app-accent">₹{safeToSpendPerDay}<span className="text-sm font-normal text-app-muted">/day</span></p>
+                <p className="text-2xl font-bold font-mono text-app-accent">₹{safeToSpendPerDay.toLocaleString('en-IN')}<span className="text-sm font-normal text-app-muted">/day</span></p>
               </div>
             </div>
             <button onClick={() => navigate('/calendar')} className="text-xs text-app-accent border border-app-accent/30 rounded-lg px-3 py-1.5 hover:bg-app-accent/10 transition-colors flex items-center gap-1">
               View cashflow <ArrowRight className="w-3 h-3" />
             </button>
           </div>
-          <p className="text-xs text-app-muted mt-1.5 ml-13">Based on your income, budgets, and {daysRemaining} days left this month</p>
+          <p className="text-xs text-app-muted mt-1.5 ml-13">Based on your income, budgets, and {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} left this month</p>
         </>
       ) : (
         <div className="mt-4 pt-4 border-t border-white/5 dark:border-white/5">
