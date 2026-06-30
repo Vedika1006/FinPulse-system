@@ -256,6 +256,7 @@ export default function Budgets() {
       await createBudget({ category: cat, amount, month });
       showToast(`Budget set for ${titleCaseCategory(cat)}`, "success");
       setSuggestions((prev) => prev.filter((s) => s.category !== cat));
+      await load();
     } catch (err) {
       const msg = err.response?.data?.detail || "Could not create budget";
       showToast(typeof msg === "string" ? msg : "Could not create budget", "error");
