@@ -170,7 +170,7 @@ export default function Subscriptions() {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <RefreshCw className="w-10 h-10 text-app-muted mb-3" />
-        <h3 className="text-base font-medium text-app-ink dark:text-white mb-1">
+        <h3 className="text-base font-medium text-gray-900 dark:text-white mb-1">
           No recurring payments detected yet
         </h3>
         <p className="text-sm text-app-muted max-w-sm">

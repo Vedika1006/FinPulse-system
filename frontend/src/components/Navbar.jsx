@@ -10,6 +10,7 @@ const ROUTE_TITLES = [
   { match: /^\/budgets\/?$/, title: "Budgets", subtitle: "Plans vs actuals" },
   { match: /^\/analytics\/?$/, title: "Analytics", subtitle: "Trends & health" },
   { match: /^\/settings\/?$/, title: "Settings", subtitle: "Profile & preferences" },
+  { match: /^\/subscriptions\/?$/, title: "Subscriptions", subtitle: "Recurring payments & control" },
 ];
 
 const Navbar = ({ toggleSidebar, alerts }) => {
