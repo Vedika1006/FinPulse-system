@@ -502,6 +502,9 @@ const Dashboard = () => {
           health={health}
           cashflowPrediction={cashflowPrediction}
           formatCurrency={formatCurrency}
+          income={totalCredit}
+          totalExpenses={totalExpenses}
+          totalBudget={memory?.meta?.month_total_budget || 0}
         />
       </motion.div>
 
