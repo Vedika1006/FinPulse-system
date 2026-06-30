@@ -200,35 +200,35 @@ export default function Subscriptions() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4 mb-4">
-        <div className="rounded-xl bg-app-card border border-white/5 p-3">
-          <p className="text-xs text-app-muted uppercase tracking-wide mb-1">Monthly recurring</p>
+        <div className="rounded-xl bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 p-3">
+          <p className="text-xs text-gray-500 dark:text-app-muted uppercase tracking-wide mb-1">Monthly recurring</p>
           <p className="text-2xl font-bold font-mono text-app-accent">
             ₹{monthlyTotal.toLocaleString("en-IN")}
           </p>
         </div>
 
-        <div className="rounded-xl bg-app-card border border-white/5 p-3">
-          <p className="text-xs text-app-muted uppercase tracking-wide mb-1">Next due</p>
+        <div className="rounded-xl bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 p-3">
+          <p className="text-xs text-gray-500 dark:text-app-muted uppercase tracking-wide mb-1">Next due</p>
           {nextDueSub ? (
             <>
-              <p className="text-sm font-semibold text-app-ink dark:text-white truncate">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                 {nextDueSub.name}
               </p>
-              <p className="text-xs text-app-muted">
+              <p className="text-xs text-gray-500 dark:text-app-muted">
                 ₹{nextDueSub.latestAmount.toLocaleString("en-IN")} · {getDueLabel(nextDueSub.nextDue)}
               </p>
             </>
           ) : (
-            <p className="text-sm text-app-muted">—</p>
+            <p className="text-sm text-gray-500 dark:text-app-muted">—</p>
           )}
         </div>
 
-        <div className="rounded-xl bg-app-card border border-white/5 p-3">
-          <p className="text-xs text-app-muted uppercase tracking-wide mb-1">Price changes</p>
+        <div className="rounded-xl bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 p-3">
+          <p className="text-xs text-gray-500 dark:text-app-muted uppercase tracking-wide mb-1">Price changes</p>
           {priceChangeCount > 0 ? (
             <p className="text-2xl font-bold font-mono text-amber-500">{priceChangeCount}</p>
           ) : (
-            <p className="text-sm text-app-muted mt-1">No changes</p>
+            <p className="text-sm text-gray-500 dark:text-app-muted mt-1">No changes</p>
           )}
         </div>
       </div>
@@ -251,15 +251,15 @@ export default function Subscriptions() {
               <div
                 key={item.id}
                 onClick={() => setSelectedSub(item)}
-                className="flex items-center justify-between bg-app-card border border-white/5 rounded-xl p-3 cursor-pointer hover:border-app-accent/30 transition-colors"
+                className="flex items-center justify-between bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 rounded-xl p-3 cursor-pointer hover:border-app-accent/30 transition-colors"
               >
                 <div>
-                  <p className="text-sm font-medium text-app-ink dark:text-white">{item.name}</p>
-                  <p className="text-xs text-app-muted">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{item.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-app-muted">
                     ₹{item.amount.toLocaleString("en-IN")}/month
                   </p>
                 </div>
-                <span className="text-xs text-app-muted">{getDueLabel(item.nextDue)}</span>
+                <span className="text-xs text-gray-500 dark:text-app-muted">{getDueLabel(item.nextDue)}</span>
               </div>
             ))}
           </div>
@@ -282,16 +282,16 @@ export default function Subscriptions() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ duration: 0.25 }}
-              className="fixed right-0 top-0 h-full w-full max-w-sm bg-app-card border-l border-white/10 z-50 p-5 overflow-y-auto"
+              className="fixed right-0 top-0 h-full w-full max-w-sm bg-white dark:bg-app-card border-l border-gray-200 dark:border-white/10 z-50 p-5 overflow-y-auto"
             >
               {/* Drawer header */}
               <div className="flex items-start justify-between mb-4">
-                <h3 className="text-lg font-semibold text-app-ink dark:text-white pr-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white pr-4">
                   {selectedSub.name}
                 </h3>
                 <button
                   onClick={closeDrawer}
-                  className="text-app-muted hover:text-app-ink transition-colors flex-shrink-0"
+                  className="text-gray-400 dark:text-app-muted hover:text-gray-900 dark:hover:text-white transition-colors flex-shrink-0"
                   aria-label="Close"
                 >
                   <X className="w-5 h-5" />
@@ -303,31 +303,31 @@ export default function Subscriptions() {
                 <span className="text-3xl font-bold font-mono text-app-accent">
                   ₹{selectedSub.amount.toLocaleString("en-IN")}
                 </span>
-                <span className="text-sm text-app-muted">/month</span>
+                <span className="text-sm text-gray-500 dark:text-app-muted">/month</span>
               </div>
-              <p className="text-sm text-app-muted mb-5">
+              <p className="text-sm text-gray-500 dark:text-app-muted mb-5">
                 ₹{(selectedSub.amount * 12).toLocaleString("en-IN")}/year
               </p>
 
               {/* Details */}
-              <div className="space-y-3 text-sm mb-6 border-t border-white/5 pt-4">
+              <div className="space-y-3 text-sm mb-6 border-t border-gray-100 dark:border-white/5 pt-4">
                 <div className="flex justify-between">
-                  <span className="text-app-muted">Detected since</span>
-                  <span className="text-app-ink dark:text-white font-medium">
+                  <span className="text-gray-500 dark:text-app-muted">Detected since</span>
+                  <span className="text-gray-900 dark:text-white font-medium">
                     {new Date(selectedSub.firstSeen).toLocaleDateString("en-IN", {
                       day: "numeric", month: "short", year: "numeric",
                     })}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-app-muted">Next renewal</span>
-                  <span className="text-app-ink dark:text-white font-medium">
+                  <span className="text-gray-500 dark:text-app-muted">Next renewal</span>
+                  <span className="text-gray-900 dark:text-white font-medium">
                     {getDueLabel(selectedSub.nextDue)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-app-muted">Frequency</span>
-                  <span className="text-app-ink dark:text-white font-medium capitalize">
+                  <span className="text-gray-500 dark:text-app-muted">Frequency</span>
+                  <span className="text-gray-900 dark:text-white font-medium capitalize">
                     {selectedSub.frequency}
                   </span>
                 </div>
