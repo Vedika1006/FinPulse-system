@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
 from app.database import get_db
-from app.models import Expense, Income
+from app.models import Expense, Income, UserMemory
 from app.schemas import ImportConfirmRequest, ImportConfirmResponse, ImportPreviewResponse
 from app.services.csv_import_service import (
     categorize_parsed_transactions,
@@ -98,6 +98,15 @@ def confirm_csv_import(
     """
     Bulk insert approved transactions into the expenses table.
     """
+    print(
+        f"[CSV Import Confirm] user_id={user_id} "
+        f"transactions={len(payload.transactions)} "
+        f"income_entries={len(payload.income_entries)} "
+        f"skip_duplicates={payload.skip_duplicates}"
+    )
+    if payload.income_entries:
+        print(f"[CSV Import Confirm] First income entry: {payload.income_entries[0]}")
+
     imported = 0
     skipped = 0
 
@@ -182,5 +191,15 @@ def confirm_csv_import(
 
     if income_by_month:
         db.commit()
+
+    # Invalidate the 24-hour UserMemory cache so the next analytics load
+    # recomputes month_total_expense and month_overspend with the new data.
+    try:
+        mem_row = db.query(UserMemory).filter(UserMemory.user_id == user_id).first()
+        if mem_row:
+            mem_row.updated_at = datetime.utcnow() - timedelta(hours=25)
+            db.commit()
+    except Exception:
+        pass
 
     return {"imported_count": imported, "skipped_count": skipped, "income_imported": income_imported}

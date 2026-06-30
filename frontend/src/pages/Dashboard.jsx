@@ -246,12 +246,23 @@ const Dashboard = () => {
     const daysElapsed = today.getDate();
     if (daysElapsed === 0) return 0;
     const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    const monthStr = today.toISOString().slice(0, 7);
+    // Use local month/year (toISOString gives UTC which can be the previous day near midnight in IST)
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    // Filter by created_at to match how Analytics computes "this month".
+    // Imported expenses get created_at = import date, not their original transaction date,
+    // so this correctly counts all expenses entered/imported this month.
     const monthTotal = (Array.isArray(allExpenses) ? allExpenses : [])
-      .filter((e) => (e.date || e.created_at || "").slice(0, 7) === monthStr)
+      .filter((e) => {
+        const ts = e?.created_at ? new Date(e.created_at) : null;
+        return ts && ts.getMonth() === currentMonth && ts.getFullYear() === currentYear;
+      })
       .reduce((s, e) => s + Number(e.amount || 0), 0);
     if (monthTotal === 0) return 0;
-    return Math.round((monthTotal / daysElapsed) * daysInMonth);
+    console.log(`[Projection] This month spent: ₹${monthTotal.toFixed(0)}, Days elapsed: ${daysElapsed}/${daysInMonth}`);
+    const projection = Math.round((monthTotal / daysElapsed) * daysInMonth);
+    // Projection can never be less than what's already been spent
+    return Math.max(projection, Math.round(monthTotal));
   }, [allExpenses]);
 
   const smartAlerts = useMemo(() => {

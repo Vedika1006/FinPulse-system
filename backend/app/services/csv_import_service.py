@@ -26,10 +26,14 @@ _PAYMENT_PREFIX_RE = re.compile(
     r"^(?:NEFT|RTGS|IMPS|UPI|MMT|ACH\s*[DC]|CLG|POS|ATM\s*WDL?|ATW|INT|TRF|BIL|ECS)[/\s\-]+",
     re.IGNORECASE,
 )
-_IFSC_RE = re.compile(r"\b[A-Z]{4}0[A-Z0-9]{6}\b", re.IGNORECASE)
+_IFSC_RE = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$", re.IGNORECASE)
 _REFNUM_RE = re.compile(r"\b\d{6,}\b")
-_UPI_VPA_RE = re.compile(r"\b\w+@\w+\b")
-_SLASH_SPLIT_RE = re.compile(r"\s*/\s*")
+_SPLIT_RE = re.compile(r"[/\-]+")
+
+_PAYMENT_MODES = frozenset({
+    "neft", "rtgs", "imps", "upi", "mmt", "achd", "achc", "clg", "pos", "atm",
+    "atw", "int", "trf", "bil", "ecs", "cr", "dr",
+})
 
 _CATEGORY_KEYWORDS: dict[str, list[str]] = {
     "food": ["swiggy", "zomato", "ubereats", "restaurant", "cafe", "pizza", "mcdonalds",
@@ -52,23 +56,33 @@ def clean_transaction_description(desc: str) -> str:
     if not desc:
         return desc
     s = desc.strip()
-    # Remove leading payment mode prefix (NEFT/, UPI-, etc.)
+    # 1. Strip leading payment-mode prefix (NEFT/, UPI-, etc.)
     s = _PAYMENT_PREFIX_RE.sub("", s).strip(" /-")
-    # Split on slashes; drop tokens that are pure numbers or IFSC codes
-    parts = [p.strip() for p in _SLASH_SPLIT_RE.split(s) if p.strip()]
-    meaningful = [
-        p for p in parts
-        if not re.fullmatch(r"\d+", p)
-        and not _IFSC_RE.fullmatch(p)
-    ]
-    s = " ".join(meaningful if meaningful else parts)
-    # Remove UPI VPA handles (word@word)
-    s = _UPI_VPA_RE.sub("", s).strip()
-    # Remove remaining long digit sequences
-    s = _REFNUM_RE.sub("", s).strip()
-    # Collapse spaces
+    # 2. Split on BOTH slash and dash delimiters
+    parts = [p.strip() for p in _SPLIT_RE.split(s) if p.strip()]
+    # 3. Filter noise tokens: amounts, VPA handles, IFSC codes, mode words, "com" suffix
+    clean_parts = []
+    for p in parts:
+        pl = p.lower()
+        if re.fullmatch(r"[\d,.]+", p):          # pure number/amount: 649.00, 12,345
+            continue
+        if re.fullmatch(r"\w+@\w+", p):           # UPI VPA handle: netflix@icici
+            continue
+        if _IFSC_RE.fullmatch(p):                  # IFSC code: ICIC0000123
+            continue
+        if pl in _PAYMENT_MODES:                   # standalone mode word: neft, upi, etc.
+            continue
+        if pl == "com":                            # payment-network suffix artifact
+            continue
+        p = _REFNUM_RE.sub("", p).strip()         # strip long digit runs within the part
+        if p:
+            clean_parts.append(p)
+    s = " ".join(clean_parts)
+    # 4. Strip trailing " com" that survived inside a multi-word merchant name
+    s = re.sub(r"\s+com\s*$", "", s, flags=re.IGNORECASE).strip()
+    # 5. Collapse extra whitespace
     s = " ".join(s.split())
-    # Title-case when fully uppercase
+    # 6. Title-case
     if s and s == s.upper():
         s = s.title()
     return s or desc.strip()
