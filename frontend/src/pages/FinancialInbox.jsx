@@ -18,11 +18,11 @@ const fadeUp = (delay = 0) => ({
 const TABS = ["All", "Needs Action", "Bills", "Savings", "Risk", "AI Advice"];
 
 const TYPE_CFG = {
-  budget:  { borderCls: "border-l-amber-500",  iconBg: "bg-amber-500/10",  Icon: AlertTriangle, iconCls: "text-amber-500"  },
-  risk:    { borderCls: "border-l-red-500",     iconBg: "bg-red-500/10",    Icon: AlertCircle,   iconCls: "text-red-500"    },
-  anomaly: { borderCls: "border-l-red-500",     iconBg: "bg-red-500/10",    Icon: AlertCircle,   iconCls: "text-red-500"    },
-  savings: { borderCls: "border-l-app-accent",  iconBg: "bg-app-accent/10", Icon: PiggyBank,     iconCls: "text-app-accent" },
-  ai:      { borderCls: "border-l-violet-500",  iconBg: "bg-violet-500/10", Icon: Sparkles,      iconCls: "text-violet-500" },
+  budget:  { borderCls: "border-l-amber-500",  iconBg: "bg-amber-50 dark:bg-amber-500/10",   Icon: AlertTriangle, iconCls: "text-amber-600 dark:text-amber-400"   },
+  risk:    { borderCls: "border-l-red-500",     iconBg: "bg-red-50 dark:bg-red-900/30",        Icon: AlertCircle,   iconCls: "text-red-600 dark:text-red-400"       },
+  anomaly: { borderCls: "border-l-red-500",     iconBg: "bg-red-50 dark:bg-red-900/30",        Icon: AlertCircle,   iconCls: "text-red-600 dark:text-red-400"       },
+  savings: { borderCls: "border-l-app-accent",  iconBg: "bg-cyan-50 dark:bg-app-accent/10",   Icon: PiggyBank,     iconCls: "text-cyan-600 dark:text-app-accent"   },
+  ai:      { borderCls: "border-l-violet-500",  iconBg: "bg-violet-50 dark:bg-violet-500/10", Icon: Sparkles,      iconCls: "text-violet-600 dark:text-violet-400" },
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -251,7 +251,7 @@ export default function FinancialInbox() {
             className={`text-xs px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
               activeTab === tab
                 ? "bg-app-accent text-white"
-                : "bg-app-card border border-white/5 text-app-muted hover:text-white"
+                : "bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 text-gray-600 dark:text-app-muted hover:text-gray-900 dark:hover:text-white"
             }`}
           >
             {tab}
@@ -287,7 +287,7 @@ export default function FinancialInbox() {
                     <motion.div
                       key={item.id}
                       {...fadeUp(idx * 0.05)}
-                      className={`bg-app-card border-l-4 ${cfg.borderCls} border-y border-r border-white/5 rounded-xl p-4`}
+                      className={`bg-white dark:bg-app-card border-l-4 ${cfg.borderCls} border-y border-r border-gray-100 dark:border-white/5 rounded-xl p-4`}
                     >
                       <div className="flex items-start gap-3">
                         <div
@@ -296,7 +296,7 @@ export default function FinancialInbox() {
                           <Icon className={`w-4 h-4 ${cfg.iconCls}`} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
                             {item.title}
                           </p>
                           <p className="text-xs text-app-muted mt-0.5">{item.description}</p>
@@ -309,7 +309,7 @@ export default function FinancialInbox() {
                             </button>
                             <button
                               onClick={() => dismiss(item.id)}
-                              className="text-xs text-app-muted hover:text-white px-2"
+                              className="text-xs text-gray-400 dark:text-app-muted hover:text-gray-700 dark:hover:text-white px-2"
                             >
                               Dismiss
                             </button>
