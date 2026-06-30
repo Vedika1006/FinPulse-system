@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
 from app.database import get_db
-from app.models import Expense
+from app.models import Expense, Income
 from app.schemas import ImportConfirmRequest, ImportConfirmResponse, ImportPreviewResponse
 from app.services.csv_import_service import (
     categorize_parsed_transactions,
@@ -144,4 +144,43 @@ def confirm_csv_import(
             continue
 
     db.commit()
-    return {"imported_count": imported, "skipped_count": skipped}
+
+    # ── Income entries: group credits by month and upsert Income records ──────
+    income_imported = 0
+    income_by_month: dict[str, float] = {}
+
+    for entry in payload.income_entries:
+        raw_date = entry.get("date", "")
+        amount = 0.0
+        month_key = ""
+        try:
+            amount = float(entry.get("amount", 0))
+            if amount <= 0:
+                continue
+            for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d-%b-%Y", "%d/%m/%y"):
+                try:
+                    d = datetime.strptime(str(raw_date), fmt)
+                    month_key = d.strftime("%Y-%m")
+                    break
+                except ValueError:
+                    continue
+            if not month_key:
+                continue
+            income_by_month[month_key] = income_by_month.get(month_key, 0.0) + amount
+        except Exception:
+            continue
+
+    for month_key, total in income_by_month.items():
+        existing = (
+            db.query(Income)
+            .filter(Income.user_id == user_id, Income.month == month_key)
+            .first()
+        )
+        if existing is None:
+            db.add(Income(user_id=user_id, month=month_key, amount=round(total, 2)))
+            income_imported += 1
+
+    if income_by_month:
+        db.commit()
+
+    return {"imported_count": imported, "skipped_count": skipped, "income_imported": income_imported}

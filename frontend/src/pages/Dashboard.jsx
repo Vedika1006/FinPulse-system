@@ -242,9 +242,17 @@ const Dashboard = () => {
   }, [allExpenses]);
 
   const cashflowPrediction = useMemo(() => {
-    const weeklyAvg = Number(weekly.thisTotal || 0) / 7;
-    return Math.round(weeklyAvg * 28);
-  }, [weekly]);
+    const today = new Date();
+    const daysElapsed = today.getDate();
+    if (daysElapsed === 0) return 0;
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const monthStr = today.toISOString().slice(0, 7);
+    const monthTotal = (Array.isArray(allExpenses) ? allExpenses : [])
+      .filter((e) => (e.date || e.created_at || "").slice(0, 7) === monthStr)
+      .reduce((s, e) => s + Number(e.amount || 0), 0);
+    if (monthTotal === 0) return 0;
+    return Math.round((monthTotal / daysElapsed) * daysInMonth);
+  }, [allExpenses]);
 
   const smartAlerts = useMemo(() => {
     const a = [];

@@ -86,7 +86,7 @@ const WhatIfSimulator = ({ income = 0, expense = 0 }) => {
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs font-medium text-violet-600 dark:text-violet-400">Health Score</p>
+            <p className="text-xs font-medium text-violet-600 dark:text-violet-400">Savings Rate</p>
             <p className="font-mono text-xl font-bold tabular-nums text-violet-900 dark:text-violet-100">
               {healthScore.toFixed(1)}%
             </p>

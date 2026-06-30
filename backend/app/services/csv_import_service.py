@@ -11,12 +11,76 @@ Root cause of previous bug:
 """
 
 import io
+import re
 from datetime import datetime
 from typing import Any
 
 import pandas as pd
 
 from app.services.categorization_service import categorize_merchant
+
+
+# ── Transaction description cleaning ────────────────────────────────────────
+
+_PAYMENT_PREFIX_RE = re.compile(
+    r"^(?:NEFT|RTGS|IMPS|UPI|MMT|ACH\s*[DC]|CLG|POS|ATM\s*WDL?|ATW|INT|TRF|BIL|ECS)[/\s\-]+",
+    re.IGNORECASE,
+)
+_IFSC_RE = re.compile(r"\b[A-Z]{4}0[A-Z0-9]{6}\b", re.IGNORECASE)
+_REFNUM_RE = re.compile(r"\b\d{6,}\b")
+_UPI_VPA_RE = re.compile(r"\b\w+@\w+\b")
+_SLASH_SPLIT_RE = re.compile(r"\s*/\s*")
+
+_CATEGORY_KEYWORDS: dict[str, list[str]] = {
+    "food": ["swiggy", "zomato", "ubereats", "restaurant", "cafe", "pizza", "mcdonalds",
+             "kfc", "dominos", "burger", "diner", "biryani", "dhaba"],
+    "transport": ["uber", "ola", "metro", "petrol", "fuel", "irctc", "rapido",
+                  "indigo", "spicejet", "airindia", "airways", "airport", "cab"],
+    "shopping": ["amazon", "flipkart", "myntra", "ajio", "nykaa", "snapdeal",
+                 "meesho", "zepto", "blinkit", "bigbasket", "dmart", "reliance"],
+    "bills": ["electricity", "telecom", "airtel", "jio", "vodafone", "bsnl",
+              "bescom", "msedcl", "tata power", "water", "broadband", "postpaid"],
+    "entertainment": ["netflix", "hotstar", "prime video", "spotify", "youtube",
+                      "disney", "bookmyshow", "pvr", "inox"],
+    "health": ["pharmacy", "medical", "hospital", "clinic", "apollo", "medplus",
+               "1mg", "pharmeasy", "doctor", "diagnostics"],
+}
+
+
+def clean_transaction_description(desc: str) -> str:
+    """Strip bank reference noise from a raw statement description."""
+    if not desc:
+        return desc
+    s = desc.strip()
+    # Remove leading payment mode prefix (NEFT/, UPI-, etc.)
+    s = _PAYMENT_PREFIX_RE.sub("", s).strip(" /-")
+    # Split on slashes; drop tokens that are pure numbers or IFSC codes
+    parts = [p.strip() for p in _SLASH_SPLIT_RE.split(s) if p.strip()]
+    meaningful = [
+        p for p in parts
+        if not re.fullmatch(r"\d+", p)
+        and not _IFSC_RE.fullmatch(p)
+    ]
+    s = " ".join(meaningful if meaningful else parts)
+    # Remove UPI VPA handles (word@word)
+    s = _UPI_VPA_RE.sub("", s).strip()
+    # Remove remaining long digit sequences
+    s = _REFNUM_RE.sub("", s).strip()
+    # Collapse spaces
+    s = " ".join(s.split())
+    # Title-case when fully uppercase
+    if s and s == s.upper():
+        s = s.title()
+    return s or desc.strip()
+
+
+def _keyword_category(desc: str) -> str | None:
+    """Return a category if the description matches a known merchant keyword."""
+    lower = desc.lower()
+    for category, keywords in _CATEGORY_KEYWORDS.items():
+        if any(kw in lower for kw in keywords):
+            return category.title()
+    return None
 
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
@@ -361,16 +425,26 @@ def detect_duplicates(parsed_transactions: list[dict],
 
 def categorize_parsed_transactions(parsed_transactions: list[dict]) -> list[dict]:
     """
-    Calls categorize_merchant() (FAISS + Groq fallback) for each transaction.
-    Attaches suggested_category and category_confidence to each dict.
+    Cleans description noise, then calls categorize_merchant() (FAISS + Groq).
+    Falls back to keyword matching when confidence is below 0.4.
     """
     for txn in parsed_transactions:
-        description = str(txn.get("description", ""))
+        raw_desc = str(txn.get("description", ""))
+        cleaned = clean_transaction_description(raw_desc)
+        txn["description"] = cleaned  # store the cleaned description
         try:
-            result = categorize_merchant(description, description)
-            txn["suggested_category"] = result.get("category", "Other")
-            txn["category_confidence"] = round(float(result.get("confidence", 0.0)), 3)
+            result = categorize_merchant(cleaned, cleaned)
+            category = result.get("category", "Other")
+            confidence = round(float(result.get("confidence", 0.0)), 3)
+            if confidence < 0.4:
+                kw = _keyword_category(cleaned) or _keyword_category(raw_desc)
+                if kw:
+                    category = kw
+                    confidence = 0.6
+            txn["suggested_category"] = category
+            txn["category_confidence"] = confidence
         except Exception:
-            txn["suggested_category"] = "Other"
-            txn["category_confidence"] = 0.0
+            kw = _keyword_category(cleaned) or _keyword_category(raw_desc)
+            txn["suggested_category"] = kw or "Other"
+            txn["category_confidence"] = 0.6 if kw else 0.0
     return parsed_transactions
