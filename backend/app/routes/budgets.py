@@ -1,7 +1,9 @@
+from collections import defaultdict
+from datetime import date, datetime
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from datetime import datetime
 from sqlalchemy.exc import IntegrityError
 
 from app import models, schemas
@@ -54,6 +56,85 @@ def get_budgets(
     return db.query(models.Budget).filter(
         models.Budget.user_id == user_id
     ).all()
+
+
+# ✅ AI BUDGET SUGGESTIONS — must be defined before /{budget_id} routes
+@router.get("/suggestions", response_model=list[schemas.BudgetSuggestionResponse])
+def get_budget_suggestions(
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user),
+):
+    """
+    Analyse last 4 complete calendar months of expenses (using Expense.date)
+    and return per-category budget suggestions.  Categories with fewer than 2
+    transactions are excluded.
+    """
+    today = date.today()
+    first_of_month = datetime(today.year, today.month, 1)
+
+    y, m = today.year, today.month - 4
+    while m <= 0:
+        m += 12
+        y -= 1
+    cutoff = datetime(y, m, 1)
+
+    expenses = (
+        db.query(models.Expense)
+        .filter(
+            models.Expense.user_id == user_id,
+            models.Expense.date >= cutoff,
+            models.Expense.date < first_of_month,
+        )
+        .all()
+    )
+
+    cat_month_totals: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+    cat_tx_count: dict[str, int] = defaultdict(int)
+    seen_months: set[str] = set()
+
+    for e in expenses:
+        if e.date is None:
+            continue
+        mk = e.date.strftime("%Y-%m")
+        seen_months.add(mk)
+        cat = (e.category or "other").strip().lower()
+        cat_month_totals[cat][mk] += e.amount
+        cat_tx_count[cat] += 1
+
+    months_analyzed = max(len(seen_months), 1)
+
+    current_month = today.strftime("%Y-%m")
+    existing = (
+        db.query(models.Budget)
+        .filter(
+            models.Budget.user_id == user_id,
+            models.Budget.month == current_month,
+        )
+        .all()
+    )
+    existing_map = {b.category.lower(): b.amount for b in existing}
+
+    suggestions = []
+    for cat, month_data in cat_month_totals.items():
+        if cat_tx_count[cat] < 2:
+            continue
+        avg = sum(month_data.values()) / months_analyzed
+        suggested = (
+            round(avg / 500) * 500 if avg >= 5000 else round(avg / 100) * 100
+        )
+        suggested = max(100.0, float(suggested))
+        suggestions.append(
+            schemas.BudgetSuggestionResponse(
+                category=cat,
+                avg_monthly_spend=round(avg, 2),
+                suggested_budget=suggested,
+                months_analyzed=months_analyzed,
+                existing_budget=existing_map.get(cat),
+            )
+        )
+
+    suggestions.sort(key=lambda s: s.avg_monthly_spend, reverse=True)
+    return suggestions
 
 
 # ✅ UPDATE BUDGET

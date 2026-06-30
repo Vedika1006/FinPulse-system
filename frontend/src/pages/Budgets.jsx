@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   getBudgets,
   createBudget,
   getBudgetVsActual,
-  deleteBudget,          // ← CRASH FIX: was called but never imported
+  deleteBudget,
+  getBudgetSuggestions,
 } from "../api/budgets";
 import { getGoals, createGoal, deleteGoal, updateGoal } from "../api/goals";
 import { getHealthScore } from "../api/dashboard";
@@ -21,7 +23,7 @@ import API from "../api/axios";
 import FormattedAIResponse from "../components/FormattedAIResponse";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
-import { Wallet, CheckCircle2 } from "lucide-react";
+import { Wallet, CheckCircle2, Sparkles } from "lucide-react";
 
 function pctUsed(spent, budget) {
   const b = Number(budget);
@@ -66,6 +68,13 @@ export default function Budgets() {
 
   const [form, setForm]         = useState({ category: "", amount: "" });
   const [goalForm, setGoalForm] = useState({ name: "", target_amount: "", deadline: "" });
+
+  // ── AI Suggested Budgets tab ────────────────────────────
+  const [budgetTab,           setBudgetTab]           = useState("my-budgets");
+  const [suggestions,         setSuggestions]         = useState([]);
+  const [suggestionsLoading,  setSuggestionsLoading]  = useState(false);
+  const [suggestEditAmounts,  setSuggestEditAmounts]  = useState({});
+  const [acceptingSuggestion, setAcceptingSuggestion] = useState(null);
 
   const titleCaseCategory = (value) =>
     String(value || "").split(/[\s_-]+/g).filter(Boolean)
@@ -225,6 +234,36 @@ export default function Budgets() {
     }
   };
 
+  useEffect(() => {
+    if (budgetTab !== "ai-suggested") return;
+    setSuggestionsLoading(true);
+    getBudgetSuggestions()
+      .then((data) => {
+        setSuggestions(data);
+        const init = {};
+        data.forEach((s) => { init[s.category] = String(s.suggested_budget); });
+        setSuggestEditAmounts(init);
+      })
+      .catch(() => showToast("Could not load AI suggestions", "error"))
+      .finally(() => setSuggestionsLoading(false));
+  }, [budgetTab]); // eslint-disable-line
+
+  const handleAcceptSuggestion = async (cat) => {
+    const amount = parseFloat(suggestEditAmounts[cat]);
+    if (Number.isNaN(amount) || amount <= 0) return;
+    setAcceptingSuggestion(cat);
+    try {
+      await createBudget({ category: cat, amount, month });
+      showToast(`Budget set for ${titleCaseCategory(cat)}`, "success");
+      setSuggestions((prev) => prev.filter((s) => s.category !== cat));
+    } catch (err) {
+      const msg = err.response?.data?.detail || "Could not create budget";
+      showToast(typeof msg === "string" ? msg : "Could not create budget", "error");
+    } finally {
+      setAcceptingSuggestion(null);
+    }
+  };
+
   const totalBudget    = vs ? Number(vs.total_budget)    : 0;
   const totalSpent     = vs ? Number(vs.total_spent)     : 0;
   const totalRemaining = vs ? Number(vs.total_remaining) : 0;
@@ -362,26 +401,149 @@ export default function Budgets() {
             Plan limits and track spending against them by month.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-app-subtle">
-            <span className="whitespace-nowrap">Month</span>
-            <input
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 dark:border-white/[0.08] dark:bg-app-surface dark:text-white dark:focus:border-cyan-500/40"
-            />
-          </label>
-          <button type="button" onClick={askAIExplain}
-            className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-white/[0.08] dark:bg-app-card dark:text-app-subtle dark:hover:bg-white/5">
-            {explaining ? "Explaining…" : "Explain this"}
-          </button>
-          <button type="button" onClick={() => setModalOpen(true)}
-            className="rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-[#06080F] shadow-sm transition hover:bg-cyan-400">
-            New budget
-          </button>
-        </div>
+        {budgetTab === "my-budgets" && (
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-app-subtle">
+              <span className="whitespace-nowrap">Month</span>
+              <input
+                type="month"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 dark:border-white/[0.08] dark:bg-app-surface dark:text-white dark:focus:border-cyan-500/40"
+              />
+            </label>
+            <button type="button" onClick={askAIExplain}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-white/[0.08] dark:bg-app-card dark:text-app-subtle dark:hover:bg-white/5">
+              {explaining ? "Explaining…" : "Explain this"}
+            </button>
+            <button type="button" onClick={() => setModalOpen(true)}
+              className="rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-[#06080F] shadow-sm transition hover:bg-cyan-400">
+              New budget
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* ── Tab switcher ─────────────────────────────── */}
+      <div className="flex gap-1 rounded-xl border border-gray-100 bg-gray-50 p-1 dark:border-white/[0.06] dark:bg-white/[0.03]">
+        {[
+          { id: "my-budgets",   label: "My Budgets" },
+          { id: "ai-suggested", label: "AI Suggested" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setBudgetTab(tab.id)}
+            className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition ${
+              budgetTab === tab.id
+                ? "bg-white text-gray-900 shadow-sm dark:bg-app-card dark:text-white"
+                : "text-gray-500 hover:text-gray-700 dark:text-app-muted dark:hover:text-white"
+            }`}
+          >
+            {tab.id === "ai-suggested" && <Sparkles className="h-3.5 w-3.5" aria-hidden />}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── AI Suggested Budgets tab ─────────────────── */}
+      {budgetTab === "ai-suggested" && (
+        <>
+          {suggestionsLoading ? (
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              <CardSkeleton /><CardSkeleton /><CardSkeleton />
+            </div>
+          ) : suggestions.length === 0 ? (
+            <Card>
+              <CardBody className="py-8">
+                <EmptyState
+                  icon={Sparkles}
+                  title="No suggestions yet"
+                  description="Add at least 2 transactions per category over the last 4 months to unlock AI budget suggestions."
+                />
+              </CardBody>
+            </Card>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {suggestions.map((s, i) => {
+                const alreadySet = s.existing_budget != null;
+                const editVal    = suggestEditAmounts[s.category] ?? String(s.suggested_budget);
+                const isAccepting = acceptingSuggestion === s.category;
+                return (
+                  <motion.div
+                    key={s.category}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: i * 0.07 }}
+                  >
+                    <Card>
+                      <CardBody className="space-y-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="truncate font-semibold text-gray-900 dark:text-white">
+                              {titleCaseCategory(s.category)}
+                            </h3>
+                            <p className="mt-0.5 text-xs text-gray-400 dark:text-app-muted">
+                              Avg.{" "}
+                              {formatINR(s.avg_monthly_spend)}
+                              /mo · {s.months_analyzed} mo analyzed
+                            </p>
+                          </div>
+                          {alreadySet && (
+                            <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+                              Set
+                            </span>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-app-muted">
+                            Suggested limit (₹)
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            step="100"
+                            value={editVal}
+                            onChange={(e) =>
+                              setSuggestEditAmounts((prev) => ({ ...prev, [s.category]: e.target.value }))
+                            }
+                            disabled={alreadySet}
+                            className={fieldClass + (alreadySet ? " opacity-50 cursor-not-allowed" : "")}
+                          />
+                        </div>
+
+                        {alreadySet ? (
+                          <p className="text-xs text-gray-400 dark:text-app-muted">
+                            Already set to{" "}
+                            <span className="font-medium text-gray-600 dark:text-app-subtle">
+                              {formatINR(s.existing_budget)}
+                            </span>{" "}
+                            — manage in <strong>My Budgets</strong>.
+                          </p>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleAcceptSuggestion(s.category)}
+                            disabled={isAccepting}
+                            className={btnPrimary + " w-full text-center"}
+                          >
+                            {isAccepting ? "Saving…" : "Accept"}
+                          </button>
+                        )}
+                      </CardBody>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── My Budgets tab ───────────────────────────── */}
+      {budgetTab === "my-budgets" && (
+        <>
 
       {error && <AlertBanner message={error} onDismiss={() => setError("")} type="error" />}
 
@@ -495,6 +657,8 @@ export default function Budgets() {
               </CardBody>
             </Card>
           )}
+        </>
+      )}
         </>
       )}
 

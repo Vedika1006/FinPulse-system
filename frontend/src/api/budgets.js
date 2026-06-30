@@ -19,3 +19,9 @@ export async function getBudgetVsActual(month) {
   const res = await API.get(`/budgets/vs-actual/${month}/`);
   return res.data;
 }
+
+/** GET /budgets/suggestions */
+export async function getBudgetSuggestions() {
+  const res = await API.get("/budgets/suggestions");
+  return res.data;
+}
