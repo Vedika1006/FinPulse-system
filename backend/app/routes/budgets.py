@@ -137,6 +137,26 @@ def get_budget_suggestions(
     return suggestions
 
 
+# ✅ ROLLOVER TOGGLE
+@router.patch("/{budget_id}/rollover", response_model=schemas.BudgetResponse)
+def update_budget_rollover(
+    budget_id: int,
+    payload: schemas.BudgetRolloverUpdate,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user),
+):
+    budget = db.query(models.Budget).filter(
+        models.Budget.id == budget_id,
+        models.Budget.user_id == user_id,
+    ).first()
+    if not budget:
+        raise NotFoundException("Budget not found")
+    budget.rollover_enabled = payload.rollover_enabled
+    db.commit()
+    db.refresh(budget)
+    return budget
+
+
 # ✅ UPDATE BUDGET
 @router.put("/{budget_id}", response_model=schemas.BudgetResponse)
 def update_budget(
@@ -187,7 +207,7 @@ def delete_budget(
     return {"message": "Budget deleted successfully"}
 
 
-# ✅ BUDGET VS ACTUAL
+# ✅ BUDGET VS ACTUAL (with rollover)
 @router.get("/vs-actual/{month}/")
 def budget_vs_actual(
     month: str,
@@ -230,29 +250,69 @@ def budget_vs_actual(
 
     expense_dict = {cat: total for cat, total in expense_totals}
 
+    # ── Previous month window (for rollover) ─────────────────────────────────
+    prev_month_num = start_date.month - 1
+    prev_year = start_date.year
+    if prev_month_num == 0:
+        prev_month_num = 12
+        prev_year -= 1
+    prev_month_str = f"{prev_year:04d}-{prev_month_num:02d}"
+    prev_start = datetime(prev_year, prev_month_num, 1)
+    prev_end = start_date  # exclusive upper bound = start of current month
+
+    prev_budgets_rows = db.query(models.Budget).filter(
+        models.Budget.user_id == user_id,
+        models.Budget.month == prev_month_str,
+    ).all()
+    prev_budget_map = {b.category.lower(): b.amount for b in prev_budgets_rows}
+
+    prev_expense_totals = db.query(
+        func.lower(models.Expense.category),
+        func.sum(models.Expense.amount),
+    ).filter(
+        models.Expense.user_id == user_id,
+        models.Expense.created_at >= prev_start,
+        models.Expense.created_at < prev_end,
+    ).group_by(func.lower(models.Expense.category)).all()
+    prev_expense_dict = {cat: float(total) for cat, total in prev_expense_totals}
+
     categories_data = []
-    total_budget = 0
-    total_spent = 0
+    total_budget = 0.0
+    total_spent = 0.0
 
     for budget in budgets:
-        total_budget += budget.amount
-
-        spent = expense_dict.get((budget.category or "").lower(), 0)
+        cat_key = (budget.category or "").lower()
+        spent = float(expense_dict.get(cat_key, 0))
         total_spent += spent
 
+        rollover_amount = 0.0
+        if budget.rollover_enabled and cat_key in prev_budget_map:
+            prev_limit = prev_budget_map[cat_key]
+            prev_spent = prev_expense_dict.get(cat_key, 0.0)
+            leftover = prev_limit - prev_spent
+            if leftover > 0:
+                rollover_amount = round(leftover, 2)
+
+        adjusted_limit = budget.amount + rollover_amount
+        total_budget += adjusted_limit
+
         categories_data.append({
+            "id": budget.id,
             "category": budget.category,
-            "budget": budget.amount,
-            "actual_spent": float(spent),
-            "remaining": budget.amount - float(spent),
-            "status": "Over Budget" if spent > budget.amount else "Within Budget"
+            "budget": adjusted_limit,           # displayed limit (base + rollover)
+            "base_budget": budget.amount,       # original set limit
+            "rollover_amount": rollover_amount,
+            "rollover_enabled": budget.rollover_enabled,
+            "actual_spent": spent,
+            "remaining": adjusted_limit - spent,
+            "status": "Over Budget" if spent > adjusted_limit else "Within Budget"
         })
 
     return {
         "month": month,
         "total_budget": total_budget,
-        "total_spent": float(total_spent),
-        "total_remaining": float(total_budget - total_spent),
+        "total_spent": total_spent,
+        "total_remaining": total_budget - total_spent,
         "status": "Over Budget" if total_spent > total_budget else "Within Budget",
         "categories": categories_data
     }

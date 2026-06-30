@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from app.database import engine, Base
 from app import models
-from app.routes import auth, expenses, budgets, analytics, ai, income, goals, receipts, imports
+from app.routes import auth, expenses, budgets, analytics, ai, income, goals, receipts, imports, auto_save_rules
 from app.services.categorization_service import _load as warm_faiss
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -138,6 +138,21 @@ def _ensure_schema() -> None:
                     conn.execute(text("UPDATE budgets SET limit_amount = amount WHERE limit_amount IS NULL"))
             except Exception:
                 pass
+
+            # Budgets: add rollover_enabled column
+            try:
+                if str(engine.url).startswith("sqlite"):
+                    bud_cols2 = [r[1] for r in conn.execute(text("PRAGMA table_info(budgets)")).fetchall()]
+                    if "rollover_enabled" not in bud_cols2:
+                        conn.execute(text("ALTER TABLE budgets ADD COLUMN rollover_enabled BOOLEAN DEFAULT 0 NOT NULL"))
+                else:
+                    exists_ro = conn.execute(
+                        text("SELECT 1 FROM information_schema.columns WHERE table_name='budgets' AND column_name='rollover_enabled' LIMIT 1")
+                    ).first()
+                    if not exists_ro:
+                        conn.execute(text("ALTER TABLE budgets ADD COLUMN rollover_enabled BOOLEAN DEFAULT FALSE NOT NULL"))
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -154,6 +169,7 @@ app.include_router(income.router)
 app.include_router(goals.router)
 app.include_router(receipts.router)
 app.include_router(imports.router)
+app.include_router(auto_save_rules.router)
 
 
 @app.get("/")
