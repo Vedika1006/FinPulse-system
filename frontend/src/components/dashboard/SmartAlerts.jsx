@@ -23,6 +23,15 @@ const SmartAlerts = ({ alerts, btnSecondary, navigate }) => {
           </div>
         ))}
       </div>
+      <div className="mt-3 border-t border-gray-100 dark:border-white/[0.06] pt-3">
+        <button
+          type="button"
+          onClick={() => navigate("/inbox")}
+          className="text-xs font-medium text-app-accent hover:underline"
+        >
+          View all in Inbox →
+        </button>
+      </div>
     </div>
   );
 };
