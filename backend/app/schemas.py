@@ -296,3 +296,11 @@ class ImportConfirmResponse(BaseModel):
     imported_count: int
     skipped_count: int
     income_imported: int = 0
+
+
+class BudgetSuggestionResponse(BaseModel):
+    category: str
+    avg_monthly_spend: float
+    suggested_budget: float
+    months_analyzed: int
+    existing_budget: Optional[float] = None
