@@ -288,9 +288,11 @@ class ImportPreviewResponse(BaseModel):
 
 class ImportConfirmRequest(BaseModel):
     transactions: list[dict]
+    income_entries: list[dict] = []
     skip_duplicates: bool = True
 
 
 class ImportConfirmResponse(BaseModel):
     imported_count: int
     skipped_count: int
+    income_imported: int = 0

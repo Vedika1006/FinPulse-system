@@ -107,7 +107,8 @@ export default function MoneyImport() {
     if (!previewData) return;
     const selected = previewData.transactions.filter((_, i) => checkedTxns[i]);
     try {
-      const result = await confirmCSVImport(selected, false);
+      const result = await confirmCSVImport(selected, previewData.income_entries || [], false);
+      localStorage.removeItem("finpulse_weekly_action");
       setImportResult(result);
       setStep("done");
     } catch {
@@ -366,6 +367,12 @@ export default function MoneyImport() {
             <p className="text-sm text-app-muted mb-1">
               Your expenses and forecasts have been updated.
             </p>
+            {importResult.income_imported > 0 && (
+              <p className="text-xs text-app-muted">
+                Income set for {importResult.income_imported} month
+                {importResult.income_imported !== 1 ? "s" : ""}.
+              </p>
+            )}
             {importResult.skipped_count > 0 && (
               <p className="text-xs text-app-muted mb-4">
                 {importResult.skipped_count} transaction

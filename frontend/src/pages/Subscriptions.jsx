@@ -3,6 +3,32 @@ import { motion, AnimatePresence } from "framer-motion";
 import { RefreshCw, X, Bell } from "lucide-react";
 import API from "../api/axios";
 
+// ── Description display cleaning ────────────────────────────────────────────
+
+function cleanDisplayName(desc) {
+  if (!desc) return desc;
+  let s = desc.trim();
+  // Strip leading payment mode prefix
+  s = s.replace(/^(NEFT|RTGS|IMPS|UPI|MMT|ACH\s*[DC]|CLG|POS|ATM\s*WDL?)[/\s\-]+/i, "").trim();
+  // Split on slashes and drop pure-numeric or IFSC tokens
+  const parts = s.split("/").map((p) => p.trim()).filter(Boolean);
+  const meaningful = parts.filter(
+    (p) => !/^\d+$/.test(p) && !/^[A-Z]{4}0[A-Z0-9]{6}$/i.test(p)
+  );
+  s = (meaningful.length > 0 ? meaningful : parts).join(" ");
+  // Remove UPI VPA handles (word@word)
+  s = s.replace(/\b\w+@\w+\b/g, "").trim();
+  // Remove long digit sequences
+  s = s.replace(/\b\d{6,}\b/g, "").trim();
+  // Collapse spaces
+  s = s.replace(/\s+/g, " ").trim();
+  // Title-case if fully uppercase
+  if (s && s === s.toUpperCase()) {
+    s = s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+  return s || desc.trim();
+}
+
 // ── Recurring detection ─────────────────────────────────────────────────────
 
 function getExpenseDate(exp) {
@@ -60,7 +86,7 @@ function detectRecurring(expenses) {
 
     recurring.push({
       id: key,
-      name: key.charAt(0).toUpperCase() + key.slice(1),
+      name: cleanDisplayName(key),
       amount: Math.round(monthlyAmount),
       latestAmount,
       previousAmount,

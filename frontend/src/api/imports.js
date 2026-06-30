@@ -10,9 +10,10 @@ export const previewCSVImport = async (file, bank) => {
   return res.data;
 };
 
-export const confirmCSVImport = async (transactions, skipDuplicates = true) => {
+export const confirmCSVImport = async (transactions, incomeEntries = [], skipDuplicates = true) => {
   const res = await API.post("/import/csv/confirm", {
     transactions,
+    income_entries: incomeEntries,
     skip_duplicates: skipDuplicates,
   });
   return res.data;
