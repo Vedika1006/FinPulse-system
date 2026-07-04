@@ -104,7 +104,36 @@ def ai_chat(
     except Exception:
         enriched = data
 
-    return {"reply": generate_chat_reply(payload.message, context=payload.context, data=enriched, memory=memory)}
+    # RAG: attach the user's real financial context + relevant Indian finance
+    # knowledge. Either can fail independently without breaking the chat —
+    # generate_chat_reply falls back to its original (non-RAG) prompt when
+    # rag_context is empty.
+    rag_context = None
+    try:
+        from app.services.rag_context_service import build_user_context
+
+        rag_context = build_user_context(user_id, db)
+    except Exception:
+        rag_context = None
+
+    knowledge_chunks = None
+    try:
+        from app.services.rag_knowledge_base import retrieve_relevant_knowledge
+
+        knowledge_chunks = retrieve_relevant_knowledge(payload.message)
+    except Exception:
+        knowledge_chunks = None
+
+    return {
+        "reply": generate_chat_reply(
+            payload.message,
+            context=payload.context,
+            data=enriched,
+            memory=memory,
+            rag_context=rag_context,
+            knowledge_chunks=knowledge_chunks,
+        )
+    }
 
 
 from fastapi import HTTPException

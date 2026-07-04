@@ -438,6 +438,12 @@ def _infer_intent(message: str) -> str:
     if not m:
         return "unknown"
 
+    knowledge_terms = [
+        "invest", "elss", "ppf", "nps", "sip", "mutual fund", "tax saving", "tax-saving",
+        "80c", "80d", "hra", "tax regime", "cibil", "credit score", "term insurance",
+        "health insurance", "ulip", "sgb", "gold bond", "fixed deposit", "fd rate",
+        "credit card interest", "emergency fund", "which is better", "should i invest",
+    ]
     health_terms = ["health score", "financial health", "healthscore", "score"]
     budget_terms = ["budget", "budgets", "limit", "cap", "set budget", "over budget"]
     expense_terms = ["expense", "expenses", "spend", "spent", "transactions", "purchase"]
@@ -455,6 +461,8 @@ def _infer_intent(message: str) -> str:
     ]
     advice_terms = ["what should i do", "next best", "suggest", "advice", "plan", "help me", "improve"]
 
+    if any(t in m for t in knowledge_terms):
+        return "knowledge"
     if any(t in m for t in health_terms):
         return "health"
     if any(t in m for t in budget_terms):
@@ -475,6 +483,8 @@ def generate_chat_reply(
     context: Optional[str] = None,
     data: Optional[Dict[str, Any]] = None,
     memory: Optional[Dict[str, Any]] = None,
+    rag_context: Optional[str] = None,
+    knowledge_chunks: Optional[list[str]] = None,
 ) -> str:
     user_message = (message or "").strip()
     if not user_message:
@@ -516,16 +526,41 @@ def generate_chat_reply(
     )
     mem = _safe_json(memory or {})
 
+    rag_ctx = (rag_context or "").strip()
+    knowledge = [c for c in (knowledge_chunks or []) if isinstance(c, str) and c.strip()]
+
     for model_name in list(dict.fromkeys([m for m in MODEL_CANDIDATES if m])):
         try:
-            system = (
-                "You are a fintech assistant for a personal finance app. "
-                "You MUST be data-aware, specific, and actionable. "
-                "Never give generic advice. Always reference the user's real numbers and categories. "
-                "Never write long paragraphs. "
-                "Do NOT force a single fixed template for every answer. "
-                "Only include information relevant to the user's question."
-            )
+            if rag_ctx:
+                system = (
+                    "You are FinPulse AI, a personal finance assistant for Indian users. "
+                    "You have access to the user's real financial data and knowledge of Indian finance rules. "
+                    "You MUST be data-aware, specific, and actionable. "
+                    "Never give generic advice. Never write long paragraphs. "
+                    "Do NOT force a single fixed template for every answer. "
+                    "Only include information relevant to the user's question.\n\n"
+                    f"User's financial context (real data — treat as ground truth):\n{rag_ctx}"
+                )
+                if knowledge:
+                    system += (
+                        "\n\nRelevant Indian personal finance knowledge (use only if relevant to the question):\n"
+                        + "\n".join(f"- {c}" for c in knowledge)
+                    )
+                system += (
+                    "\n\nInstructions: Always reference the user's actual numbers above when relevant to the "
+                    "question. Format currency using ₹ with Indian comma-style grouping (e.g. ₹1,00,000). Keep "
+                    "advice specific to the Indian financial context. End your reply with exactly one clear, "
+                    "actionable suggestion."
+                )
+            else:
+                system = (
+                    "You are a fintech assistant for a personal finance app. "
+                    "You MUST be data-aware, specific, and actionable. "
+                    "Never give generic advice. Always reference the user's real numbers and categories. "
+                    "Never write long paragraphs. "
+                    "Do NOT force a single fixed template for every answer. "
+                    "Only include information relevant to the user's question."
+                )
             response = client.chat.completions.create(
                 model=model_name,
                 temperature=0.35,
@@ -557,6 +592,8 @@ def generate_chat_reply(
                             "- If intent is 'expenses': ONLY talk about expenses: total spend (₹) and top categories with ₹ values.\n"
                             "- If intent is 'overview': give a complete but compact snapshot (income, expenses, savings, top categories, budgets vs actual, biggest risk/alert, and 2 next best actions).\n"
                             "- If intent is 'advice': give 3-5 actionable steps tied to the user's numbers (₹ targets), not generic tips.\n"
+                            "- If intent is 'knowledge': the user is asking a general Indian personal-finance, tax, or investment question, not asking about their own transaction history. Answer it directly and specifically using the 'Relevant Indian personal finance knowledge' given in the system message. Bring in the user's own numbers only if it naturally strengthens the answer (e.g. their savings rate) — do not force a full snapshot, budget breakdown, or overview.\n"
+                            "- If intent is 'unknown': answer the user's actual question directly and conversationally using whatever context is relevant. Do not default to a generic overview unless the question is genuinely broad.\n"
                             "\n"
                             "OUTPUT STYLE:\n"
                             "- Be conversational and clear.\n"
