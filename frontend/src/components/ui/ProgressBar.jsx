@@ -4,6 +4,7 @@ const toneClass = {
   safe: "bg-emerald-600 dark:bg-emerald-400",
   warn: "bg-amber-500 dark:bg-amber-400",
   danger: "bg-red-600 dark:bg-red-500",
+  teal: "bg-cyan-500 dark:bg-cyan-400",
 };
 
 export function ProgressBar({ pct, tone = "safe", className = "" }) {

@@ -136,3 +136,22 @@ class Recurring(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     user = relationship("User")
+
+
+class Debt(Base):
+    __tablename__ = "debts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    loan_type = Column(String, nullable=False)  # "home"|"car"|"personal"|"education"|"credit_card"|"consumer"|"other"
+    principal = Column(Numeric(12, 2), nullable=False)
+    interest_rate = Column(Numeric(5, 2), nullable=False)  # annual %, e.g. 8.50 (0 allowed for no-cost EMI)
+    tenure_months = Column(Integer, nullable=False)
+    emi_amount = Column(Numeric(12, 2), nullable=False)
+    start_date = Column(Date, nullable=False)
+    extra_payments = Column(Numeric(12, 2), default=0, nullable=False, server_default="0")
+    is_active = Column(Boolean, default=True, nullable=False, server_default="1")
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User")

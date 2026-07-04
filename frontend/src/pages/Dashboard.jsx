@@ -24,6 +24,7 @@ import WeeklyReport from "../components/dashboard/WeeklyReport";
 import KPICards from "../components/dashboard/KPICards";
 import SmartAlerts from "../components/dashboard/SmartAlerts";
 import UpcomingSubscriptions from "../components/dashboard/UpcomingSubscriptions";
+import EMIOverview from "../components/dashboard/EMIOverview";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -660,6 +661,7 @@ const Dashboard = () => {
             />
             <AnomalyAlerts />
             <UpcomingSubscriptions />
+            <EMIOverview />
           </div>
         </div>
       </motion.div>

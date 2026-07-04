@@ -10,6 +10,7 @@ import {
   CalendarDays,
   RefreshCcw,
   Inbox,
+  Landmark,
 } from "lucide-react";
 
 const NewBadge = () => (
@@ -120,6 +121,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         <NavItem to="/budgets"       label="Budgets & Goals"     Icon={PiggyBank}    setSidebarOpen={setSidebarOpen} />
         <NavItem to="/calendar"      label="Cashflow Calendar"   Icon={CalendarDays} badge setSidebarOpen={setSidebarOpen} />
         <NavItem to="/subscriptions" label="Subscriptions"       Icon={RefreshCcw}   badge setSidebarOpen={setSidebarOpen} />
+        <NavItem to="/emi"          label="EMI Tracker"         Icon={Landmark}     badge setSidebarOpen={setSidebarOpen} />
 
         {/* INSIGHTS */}
         <GroupLabel>Insights</GroupLabel>

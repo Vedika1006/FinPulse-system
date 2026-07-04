@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
+from pydantic import BaseModel, EmailStr, ConfigDict, field_validator, model_validator
 
 RECURRING_FREQUENCIES = {"weekly", "monthly", "quarterly", "yearly"}
 
@@ -451,3 +451,154 @@ class RecurringResponse(BaseModel):
     next_due_date: date
     is_active: bool
     created_at: datetime
+
+
+# ── EMI / Debt tracker schemas ────────────────────────────────────────────────
+
+DEBT_LOAN_TYPES = {"home", "car", "personal", "education", "credit_card", "consumer", "other"}
+
+
+class DebtCreate(BaseModel):
+    name: str
+    loan_type: str
+    principal: float
+    interest_rate: float
+    tenure_months: int
+    emi_amount: Optional[float] = None
+    start_date: date
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        v = (value or "").strip()
+        if not v:
+            raise ValueError("Name is required")
+        return v
+
+    @field_validator("loan_type")
+    @classmethod
+    def validate_loan_type(cls, value: str) -> str:
+        v = (value or "").strip().lower()
+        if v not in DEBT_LOAN_TYPES:
+            raise ValueError(f"Loan type must be one of: {', '.join(sorted(DEBT_LOAN_TYPES))}")
+        return v
+
+    @field_validator("principal")
+    @classmethod
+    def validate_principal(cls, value: float) -> float:
+        if value <= 0:
+            raise ValueError("Principal must be greater than 0")
+        return value
+
+    @field_validator("interest_rate")
+    @classmethod
+    def validate_interest_rate(cls, value: float) -> float:
+        if value < 0:
+            raise ValueError("Interest rate cannot be negative")
+        return value
+
+    @field_validator("tenure_months")
+    @classmethod
+    def validate_tenure_months(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("Tenure must be greater than 0 months")
+        return value
+
+    @field_validator("emi_amount")
+    @classmethod
+    def validate_emi_amount(cls, value: Optional[float]) -> Optional[float]:
+        if value is not None and value <= 0:
+            raise ValueError("EMI amount must be greater than 0")
+        return value
+
+    @model_validator(mode="after")
+    def validate_emi_covers_interest(self):
+        if self.emi_amount is not None and self.interest_rate > 0:
+            monthly_interest = self.principal * (self.interest_rate / 12 / 100)
+            if self.emi_amount <= monthly_interest:
+                raise ValueError(
+                    f"EMI amount (₹{self.emi_amount:.2f}) must be greater than the monthly interest "
+                    f"(₹{monthly_interest:.2f}) or the loan will never be paid off — leave EMI blank to "
+                    "auto-calculate, or enter a larger amount."
+                )
+        return self
+
+
+class DebtUpdate(BaseModel):
+    name: Optional[str] = None
+    emi_amount: Optional[float] = None
+    is_active: Optional[bool] = None
+    add_extra_payment: Optional[float] = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        v = value.strip()
+        if not v:
+            raise ValueError("Name cannot be empty")
+        return v
+
+    @field_validator("emi_amount")
+    @classmethod
+    def validate_emi_amount(cls, value: Optional[float]) -> Optional[float]:
+        if value is not None and value <= 0:
+            raise ValueError("EMI amount must be greater than 0")
+        return value
+
+    @field_validator("add_extra_payment")
+    @classmethod
+    def validate_extra_payment(cls, value: Optional[float]) -> Optional[float]:
+        if value is not None and value <= 0:
+            raise ValueError("Extra payment must be greater than 0")
+        return value
+
+
+class DebtResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    loan_type: str
+    principal: float
+    interest_rate: float
+    tenure_months: int
+    emi_amount: float
+    start_date: date
+    extra_payments: float
+    is_active: bool
+    created_at: datetime
+
+
+class DebtListItemResponse(DebtResponse):
+    current_outstanding_balance: float
+    interest_remaining: float
+    elapsed_months: int
+    revised_tenure_months: int
+    next_due_date: Optional[str] = None
+
+
+class AmortizationMonth(BaseModel):
+    month: int
+    date: str
+    emi: float
+    principal_component: float
+    interest_component: float
+    outstanding_balance: float
+    cumulative_interest: float
+    paid: bool
+
+
+class DebtDetailResponse(DebtListItemResponse):
+    schedule: list[AmortizationMonth]
+    interest_paid_so_far: float
+    total_interest: float
+
+
+class DebtSummaryResponse(BaseModel):
+    total_monthly_emi: float
+    total_outstanding: float
+    total_interest_remaining: float
+    active_loans: int
+    debt_free_date: Optional[str] = None
