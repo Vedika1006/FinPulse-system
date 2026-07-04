@@ -6,6 +6,7 @@ from datetime import datetime
 from sqlalchemy import DateTime
 from sqlalchemy import UniqueConstraint
 from sqlalchemy import JSON
+from sqlalchemy import Numeric, Date
 
 
 class User(Base):
@@ -119,3 +120,19 @@ class AutoSaveRule(Base):
 
     user = relationship("User")
     goal = relationship("Goal")
+
+
+class Recurring(Base):
+    __tablename__ = "recurring"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    description = Column(String, nullable=False)
+    amount = Column(Numeric(10, 2), nullable=False)
+    category = Column(String, nullable=False)
+    frequency = Column(String, nullable=False)  # "weekly" | "monthly" | "quarterly" | "yearly"
+    next_due_date = Column(Date, nullable=False, index=True)
+    is_active = Column(Boolean, default=True, nullable=False, server_default="1")
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User")

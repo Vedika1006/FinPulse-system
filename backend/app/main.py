@@ -3,10 +3,13 @@ from sqlalchemy.exc import SQLAlchemyError
 import threading
 from contextlib import asynccontextmanager
 
-from app.database import engine, Base
+from apscheduler.schedulers.background import BackgroundScheduler
+
+from app.database import engine, Base, SessionLocal
 from app import models
-from app.routes import auth, expenses, budgets, analytics, ai, income, goals, receipts, imports, auto_save_rules
+from app.routes import auth, expenses, budgets, analytics, ai, income, goals, receipts, imports, auto_save_rules, recurring
 from app.services.categorization_service import _load as warm_faiss
+from app.services.recurring_service import process_due_recurring
 
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -16,6 +19,29 @@ from app.core.exception_handler import (
     http_exception_handler,
     sqlalchemy_exception_handler,
     global_exception_handler
+)
+
+
+def _run_process_due_recurring() -> None:
+    db = SessionLocal()
+    try:
+        count = process_due_recurring(db)
+        if count:
+            print(f"[Recurring] Auto-created {count} expense(s) from due recurring items")
+    except Exception as exc:
+        print(f"[Recurring] process_due_recurring failed: {exc}")
+    finally:
+        db.close()
+
+
+scheduler = BackgroundScheduler(timezone="Asia/Kolkata")
+scheduler.add_job(
+    _run_process_due_recurring,
+    "cron",
+    hour=0,
+    minute=30,
+    id="process_due_recurring",
+    replace_existing=True,
 )
 
 
@@ -29,7 +55,9 @@ async def lifespan(app: FastAPI):
             print(f"[FAISS] Warm-up failed (Groq fallback still works): {exc}")
 
     threading.Thread(target=_warm, daemon=True).start()
+    scheduler.start()
     yield
+    scheduler.shutdown(wait=False)
 
 
 app = FastAPI(lifespan=lifespan)
@@ -170,6 +198,7 @@ app.include_router(goals.router)
 app.include_router(receipts.router)
 app.include_router(imports.router)
 app.include_router(auto_save_rules.router)
+app.include_router(recurring.router)
 
 
 @app.get("/")

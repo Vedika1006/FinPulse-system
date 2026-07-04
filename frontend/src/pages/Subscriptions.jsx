@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { RefreshCw, X, Bell } from "lucide-react";
+import { RefreshCw, X, Bell, Check, Pause, XCircle } from "lucide-react";
 import API from "../api/axios";
+import { getDueLabel, toLocalISODate } from "../utils/dueDate";
 
 // ── Description display cleaning ────────────────────────────────────────────
 
@@ -114,17 +115,32 @@ function detectRecurring(expenses) {
   return recurring;
 }
 
-function getDueLabel(nextDue) {
+// A detected pattern and a tracked (backend) item refer to the same
+// subscription if the cleaned merchant name matches. Matching on name only
+// (not amount) so a legitimate price change doesn't make an already-tracked
+// subscription look untracked again.
+function isSameSubscription(pattern, tracked) {
+  return (pattern.name || "").trim().toLowerCase() === (tracked.description || "").trim().toLowerCase();
+}
+
+// Detection can estimate a nextDue that's already in the past (rounding
+// drift in the average gap). Roll it forward to the next future occurrence
+// so confirming a pattern doesn't immediately backfill a cycle that's
+// already represented by the real expenses the detector found it from.
+function rollToFutureDate(dueDate, frequency) {
+  let d = new Date(dueDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const due = new Date(nextDue);
-  due.setHours(0, 0, 0, 0);
-  const diff = Math.round((due - today) / 86_400_000);
-  if (diff < 0) return "Overdue";
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Tomorrow";
-  if (diff <= 7) return `In ${diff} days`;
-  return due.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  let guard = 0;
+  while (d < today && guard < 240) {
+    if (frequency === "weekly") {
+      d = new Date(d.getTime() + 7 * 86_400_000);
+    } else {
+      d = new Date(d.getFullYear(), d.getMonth() + 1, d.getDate());
+    }
+    guard += 1;
+  }
+  return d;
 }
 
 // ── Animation variant ───────────────────────────────────────────────────────
@@ -145,12 +161,71 @@ export default function Subscriptions() {
   const [loading, setLoading] = useState(true);
   const [selectedSub, setSelectedSub] = useState(null);
 
+  const [tracked, setTracked] = useState([]);
+  const [trackedLoading, setTrackedLoading] = useState(true);
+  const [confirmingId, setConfirmingId] = useState(null);
+  const [busyTrackedId, setBusyTrackedId] = useState(null);
+
   useEffect(() => {
     API.get("/expenses/")
       .then((res) => setExpenses(Array.isArray(res.data) ? res.data : []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const refetchTracked = useCallback(() => {
+    return API.get("/recurring")
+      .then((res) => setTracked(Array.isArray(res.data) ? res.data : []))
+      .catch(() => {})
+      .finally(() => setTrackedLoading(false));
+  }, []);
+
+  useEffect(() => {
+    refetchTracked();
+  }, [refetchTracked]);
+
+  const handleTrackPattern = useCallback(
+    async (pattern) => {
+      setConfirmingId(pattern.id);
+      try {
+        const dueDate = rollToFutureDate(pattern.nextDue, pattern.frequency);
+        await API.post("/recurring", {
+          description: pattern.name,
+          amount: pattern.latestAmount,
+          category: pattern.category,
+          frequency: pattern.frequency,
+          next_due_date: toLocalISODate(dueDate),
+        });
+        await refetchTracked();
+      } catch {
+        // Silently keep the "Track this" button available so the user can retry.
+      } finally {
+        setConfirmingId(null);
+      }
+    },
+    [refetchTracked]
+  );
+
+  // Both "Pause" and "Cancel" soft-delete the item (is_active=false) — the
+  // data model has no separate paused state — so they share one handler.
+  const handleDeactivateTracked = useCallback(
+    async (id, method) => {
+      setBusyTrackedId(id);
+      try {
+        if (method === "put") {
+          await API.put(`/recurring/${id}`, { is_active: false });
+        } else {
+          await API.delete(`/recurring/${id}`);
+        }
+        await refetchTracked();
+      } catch {
+        // no-op — item stays in the list so the user can retry
+      } finally {
+        setBusyTrackedId(null);
+      }
+    },
+    [refetchTracked]
+  );
 
   useEffect(() => {
     const handler = (e) => { if (e.key === "Escape") setSelectedSub(null); };
@@ -186,7 +261,7 @@ export default function Subscriptions() {
 
   // ── Loading skeleton ──────────────────────────────────────────────────────
 
-  if (loading) {
+  if (loading || trackedLoading) {
     return (
       <div className="mx-auto max-w-2xl animate-pulse space-y-4 p-4">
         <div className="h-7 w-64 rounded-lg bg-gray-200 dark:bg-white/10" />
@@ -203,23 +278,6 @@ export default function Subscriptions() {
     );
   }
 
-  // ── Empty state ───────────────────────────────────────────────────────────
-
-  if (recurring.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <RefreshCw className="w-10 h-10 text-app-muted mb-3" />
-        <h3 className="text-base font-medium text-gray-900 dark:text-white mb-1">
-          No recurring payments detected yet
-        </h3>
-        <p className="text-sm text-app-muted max-w-sm">
-          We'll spot subscriptions and repeated charges automatically once you
-          have a couple months of expense history.
-        </p>
-      </div>
-    );
-  }
-
   // ── Main content ──────────────────────────────────────────────────────────
 
   return (
@@ -230,13 +288,89 @@ export default function Subscriptions() {
           Subscriptions & Recurring Payments
         </h2>
         <p className="text-sm text-app-muted mt-1">
-          ₹{monthlyTotal.toLocaleString("en-IN")}/month across {recurring.length} active payments
-          {monthlyTotal > 0 && (
-            <span> · That's ₹{(monthlyTotal * 12).toLocaleString("en-IN")} per year</span>
+          {recurring.length > 0 ? (
+            <>
+              ₹{monthlyTotal.toLocaleString("en-IN")}/month across {recurring.length} active payments
+              {monthlyTotal > 0 && (
+                <span> · That's ₹{(monthlyTotal * 12).toLocaleString("en-IN")} per year</span>
+              )}
+            </>
+          ) : (
+            "Track confirmed subscriptions and see automatically detected recurring charges below."
           )}
         </p>
       </div>
 
+      {/* Tracked Subscriptions */}
+      <motion.div className="mb-5" custom={0} initial="hidden" animate="visible" variants={fadeUp}>
+        <p className="text-xs font-medium uppercase tracking-wider text-app-muted mb-2">
+          Tracked Subscriptions
+        </p>
+        {tracked.length === 0 ? (
+          <div className="rounded-xl border border-gray-100 dark:border-white/5 bg-white dark:bg-app-card p-3 text-sm text-gray-500 dark:text-app-muted">
+            No tracked subscriptions yet — confirm a detected pattern below to start tracking.
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {tracked.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between gap-3 bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 border-l-4 border-l-blue-300 rounded-xl p-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    {item.description}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-app-muted capitalize">
+                    ₹{Number(item.amount).toLocaleString("en-IN")} · {item.frequency} · {item.category}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-app-muted">
+                    Next due{" "}
+                    {new Date(item.next_due_date).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    type="button"
+                    disabled={busyTrackedId === item.id}
+                    onClick={() => handleDeactivateTracked(item.id, "put")}
+                    className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-app-muted text-xs px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                  >
+                    <Pause className="w-3.5 h-3.5" /> Pause
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busyTrackedId === item.id}
+                    onClick={() => handleDeactivateTracked(item.id, "delete")}
+                    className="inline-flex items-center gap-1 rounded-lg border border-red-400/40 text-red-400 text-xs px-2.5 py-1.5 hover:bg-red-400/10 transition-colors disabled:opacity-50"
+                  >
+                    <XCircle className="w-3.5 h-3.5" /> Cancel
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Detected patterns (client-side detection stays intact) */}
+      {recurring.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <RefreshCw className="w-10 h-10 text-app-muted mb-3" />
+          <h3 className="text-base font-medium text-gray-900 dark:text-white mb-1">
+            No recurring payments detected yet
+          </h3>
+          <p className="text-sm text-app-muted max-w-sm">
+            We'll spot subscriptions and repeated charges automatically once you
+            have a couple months of expense history.
+          </p>
+        </div>
+      ) : (
+        <>
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div className="rounded-xl bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 p-3">
@@ -286,24 +420,48 @@ export default function Subscriptions() {
             {category}
           </p>
           <div className="flex flex-col gap-2">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => setSelectedSub(item)}
-                className="flex items-center justify-between bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 rounded-xl p-3 cursor-pointer hover:border-app-accent/30 transition-colors"
-              >
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{item.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-app-muted">
-                    ₹{item.amount.toLocaleString("en-IN")}/month
-                  </p>
+            {items.map((item) => {
+              const alreadyTracked = tracked.some((t) => isSameSubscription(item, t));
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedSub(item)}
+                  className="flex items-center justify-between gap-3 bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 rounded-xl p-3 cursor-pointer hover:border-app-accent/30 transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{item.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-app-muted">
+                      ₹{item.amount.toLocaleString("en-IN")}/month
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs text-gray-500 dark:text-app-muted">{getDueLabel(item.nextDue)}</span>
+                    {alreadyTracked ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                        <Check className="w-3 h-3" /> Tracked
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={confirmingId === item.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTrackPattern(item);
+                        }}
+                        className="rounded-lg bg-app-accent text-white text-xs font-medium px-2.5 py-1.5 hover:bg-app-accent/90 transition-colors disabled:opacity-50"
+                      >
+                        {confirmingId === item.id ? "Tracking…" : "Track this"}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <span className="text-xs text-gray-500 dark:text-app-muted">{getDueLabel(item.nextDue)}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </motion.div>
       ))}
+        </>
+      )}
 
       {/* Detail drawer */}
       <AnimatePresence>

@@ -23,6 +23,7 @@ import HeroBanner from "../components/dashboard/HeroBanner";
 import WeeklyReport from "../components/dashboard/WeeklyReport";
 import KPICards from "../components/dashboard/KPICards";
 import SmartAlerts from "../components/dashboard/SmartAlerts";
+import UpcomingSubscriptions from "../components/dashboard/UpcomingSubscriptions";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -658,6 +659,7 @@ const Dashboard = () => {
               navigate={navigate}
             />
             <AnomalyAlerts />
+            <UpcomingSubscriptions />
           </div>
         </div>
       </motion.div>

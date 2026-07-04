@@ -1,7 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Optional
 
 from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
+
+RECURRING_FREQUENCIES = {"weekly", "monthly", "quarterly", "yearly"}
 
 
 class UserCreate(BaseModel):
@@ -349,3 +351,103 @@ class BudgetSuggestionResponse(BaseModel):
     suggested_budget: float
     months_analyzed: int
     existing_budget: Optional[float] = None
+
+
+# ── Recurring (subscriptions) schemas ─────────────────────────────────────────
+
+class RecurringCreate(BaseModel):
+    description: str
+    amount: float
+    category: str
+    frequency: str
+    next_due_date: date
+
+    @field_validator("description")
+    @classmethod
+    def validate_description(cls, value: str) -> str:
+        v = (value or "").strip()
+        if not v:
+            raise ValueError("Description is required")
+        return v
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, value: str) -> str:
+        v = (value or "").strip()
+        if not v:
+            raise ValueError("Category is required")
+        return v
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amount(cls, value: float) -> float:
+        if value <= 0:
+            raise ValueError("Amount must be greater than 0")
+        return value
+
+    @field_validator("frequency")
+    @classmethod
+    def validate_frequency(cls, value: str) -> str:
+        v = (value or "").strip().lower()
+        if v not in RECURRING_FREQUENCIES:
+            raise ValueError(f"Frequency must be one of: {', '.join(sorted(RECURRING_FREQUENCIES))}")
+        return v
+
+
+class RecurringUpdate(BaseModel):
+    description: Optional[str] = None
+    amount: Optional[float] = None
+    category: Optional[str] = None
+    frequency: Optional[str] = None
+    next_due_date: Optional[date] = None
+    is_active: Optional[bool] = None
+
+    @field_validator("description")
+    @classmethod
+    def validate_description(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        v = value.strip()
+        if not v:
+            raise ValueError("Description cannot be empty")
+        return v
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        v = value.strip()
+        if not v:
+            raise ValueError("Category cannot be empty")
+        return v
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amount(cls, value: Optional[float]) -> Optional[float]:
+        if value is not None and value <= 0:
+            raise ValueError("Amount must be greater than 0")
+        return value
+
+    @field_validator("frequency")
+    @classmethod
+    def validate_frequency(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        v = value.strip().lower()
+        if v not in RECURRING_FREQUENCIES:
+            raise ValueError(f"Frequency must be one of: {', '.join(sorted(RECURRING_FREQUENCIES))}")
+        return v
+
+
+class RecurringResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    description: str
+    amount: float
+    category: str
+    frequency: str
+    next_due_date: date
+    is_active: bool
+    created_at: datetime
