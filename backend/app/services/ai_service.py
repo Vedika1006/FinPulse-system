@@ -418,19 +418,9 @@ def _clean_ai_response(text: str) -> str:
     return "\n".join(final).strip()
 
 
-def _clamp_long_paragraphs(text: str) -> str:
+def _normalize_paragraphs(text: str) -> str:
     lines = [ln.rstrip() for ln in (text or "").splitlines()]
-    out: list[str] = []
-    for ln in lines:
-        s = ln.strip()
-        if not s:
-            out.append("")
-            continue
-        if len(s) > 160 and not s.startswith(("*", "-", "Summary:", "Top Issues:", "Spending Breakdown:", "Action Plan:", "Priority:")):
-            out.append(f"* {s[:157].rstrip()}…")
-        else:
-            out.append(s)
-    return "\n".join(out).strip()
+    return "\n".join(lines).strip()
 
 
 def _infer_intent(message: str) -> str:
@@ -605,7 +595,7 @@ def generate_chat_reply(
             )
             content = (response.choices[0].message.content or "").strip()
             if content:
-                content = _clean_ai_response(_clamp_long_paragraphs(content))
+                content = _clean_ai_response(_normalize_paragraphs(content))
 
                 # Only enforce a structured fallback when the user explicitly asked for a plan.
                 if _is_plan_request(user_message) and not _looks_structured_plan(content):
@@ -662,7 +652,7 @@ def generate_chat_reply(
                     ).strip()
 
                 if (ctx or data) and not _has_number(content):
-                    return _clamp_long_paragraphs(
+                    return _normalize_paragraphs(
                         f"{content}\n\nTop Issues:\n* Missing numeric references — total is ₹{snapshot.get('total_expense', 0):.0f}."
                     )
 
