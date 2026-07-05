@@ -15,6 +15,7 @@ import { useToast } from "../components/ToastProvider";
 import { useNavigate } from "react-router-dom";
 import { getUserDisplayName } from "../utils/auth";
 import ForecastChart from "../components/ForecastChart";
+import SpendingHeatmap from "../components/SpendingHeatmap";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
@@ -920,6 +921,11 @@ export default function Analytics() {
               </div>
             </div>
           </motion.div>
+
+          {/* ══════════════════════════════════════════════
+              SECTION 6.5 — Spending Heatmap
+          ══════════════════════════════════════════════ */}
+          <SpendingHeatmap expenses={allExpenses} />
 
           {/* ══════════════════════════════════════════════
               SECTION 7 — Forecast (established only)
