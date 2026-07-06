@@ -50,9 +50,16 @@ async def lifespan(app: FastAPI):
     def _warm():
         try:
             warm_faiss()
-            print("[FAISS] Warm-up complete ✓")
         except Exception as exc:
             print(f"[FAISS] Warm-up failed (Groq fallback still works): {exc}")
+            return
+        # Separate try/except so a console-encoding issue with this print
+        # (e.g. non-UTF-8 Windows terminals) can never be mistaken for a
+        # FAISS loading failure.
+        try:
+            print("[FAISS] Warm-up complete (OK)")
+        except Exception:
+            pass
 
     threading.Thread(target=_warm, daemon=True).start()
     scheduler.start()

@@ -1,11 +1,18 @@
 """
-FAISS-based expense categorization service.
+Merchant-name categorization service.
 
-Merchant embeddings are pre-computed offline (scripts/build_embeddings.py)
-using sentence-transformers all-MiniLM-L6-v2 and saved as merchant_vectors.npy.
-At runtime only FAISS + numpy load — no PyTorch / sentence-transformers.
+Matches merchant names against a pre-computed index of 273 Indian merchants
+using substring matching and fuzzy string matching (difflib, threshold 0.80).
+FAISS is used as a verification/scoring step after the name lookup, not for
+free-text semantic search, because the sentence-transformer embedding model
+is not available at runtime (deliberately excluded to keep Railway
+deployment lightweight). Unknown merchants fall through to Groq LLM for
+categorization.
 
-Falls back to Groq LLM when FAISS confidence < 0.80.
+The merchant embeddings themselves are pre-computed offline
+(scripts/build_embeddings.py, using sentence-transformers all-MiniLM-L6-v2)
+and saved as merchant_vectors.npy — at runtime only FAISS + numpy load,
+no PyTorch / sentence-transformers.
 """
 
 
@@ -620,6 +627,8 @@ _index = None
 _label_list: list[str] = []
 _merchant_names: list[str] = []
 _vectors: np.ndarray | None = None
+_load_attempted = False
+_load_failed = False
 
 _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 _VECTORS_PATH = _DATA_DIR / "merchant_vectors.npy"
@@ -628,37 +637,50 @@ _NAMES_PATH = _DATA_DIR / "merchant_names.json"
 
 
 def _load():
-    """Load pre-computed FAISS index from disk — no PyTorch at runtime."""
-    global _index, _label_list, _merchant_names, _vectors
+    """Load the pre-computed merchant index from disk — no PyTorch at runtime."""
+    global _index, _label_list, _merchant_names, _vectors, _load_attempted, _load_failed
 
     if _index is not None:
         return
 
+    if _load_attempted and _load_failed:
+        # Already failed once this run — don't hit the disk again on every
+        # call. A server restart is needed to retry (e.g. after fixing the
+        # artifact files).
+        raise FileNotFoundError(f"FAISS artifacts previously failed to load from {_DATA_DIR}; skipping retry until restart.")
+
     with _lock:
         if _index is not None:
             return
+        if _load_attempted and _load_failed:
+            raise FileNotFoundError(f"FAISS artifacts previously failed to load from {_DATA_DIR}; skipping retry until restart.")
 
-        import faiss
+        _load_attempted = True
+        try:
+            import faiss
 
-        if not _VECTORS_PATH.exists() or not _LABELS_PATH.exists():
-            raise FileNotFoundError(
-                f"Missing embedding artifacts in {_DATA_DIR}. "
-                "Run: python scripts/build_embeddings.py"
-            )
+            if not _VECTORS_PATH.exists() or not _LABELS_PATH.exists():
+                raise FileNotFoundError(
+                    f"Missing embedding artifacts in {_DATA_DIR}. "
+                    "Run: python scripts/build_embeddings.py"
+                )
 
-        _vectors = np.load(str(_VECTORS_PATH))
-        with _LABELS_PATH.open(encoding="utf-8") as f:
-            _label_list = json.load(f)
-        if _NAMES_PATH.exists():
-            with _NAMES_PATH.open(encoding="utf-8") as f:
-                _merchant_names = json.load(f)
-        else:
-            _merchant_names = [m for m, _ in MERCHANT_CATEGORIES]
+            _vectors = np.load(str(_VECTORS_PATH))
+            with _LABELS_PATH.open(encoding="utf-8") as f:
+                _label_list = json.load(f)
+            if _NAMES_PATH.exists():
+                with _NAMES_PATH.open(encoding="utf-8") as f:
+                    _merchant_names = json.load(f)
+            else:
+                _merchant_names = [m for m, _ in MERCHANT_CATEGORIES]
 
-        _index = faiss.IndexFlatIP(_vectors.shape[1])
-        _index.add(_vectors)
+            _index = faiss.IndexFlatIP(_vectors.shape[1])
+            _index.add(_vectors)
 
-        print(f"[FAISS] Loaded {len(_label_list)} merchant vectors from disk OK")
+            print(f"[FAISS] Loaded {len(_label_list)} merchant vectors from disk OK")
+        except Exception:
+            _load_failed = True
+            raise
 
 
 def _faiss_search(query_vec: np.ndarray) -> tuple[str, float]:
@@ -807,6 +829,7 @@ Reply ONLY with JSON, no markdown:
 
         resp = client.chat.completions.create(
 
+            # TODO: update to current model — see Batch 1 fix
             model="llama-3.3-70b-versatile",
 
             messages=[{"role": "user", "content": prompt}],
