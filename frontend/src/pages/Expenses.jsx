@@ -145,7 +145,8 @@ const Expenses = () => {
     if (visibleExpenses.length === 0) return;
     const headers = ["Date", "Category", "Amount", "Description", "Note"];
     const rows = visibleExpenses.map((exp) => {
-      const dateStr = exp.created_at ? exp.created_at.substring(0, 10) : "";
+      const rawDate = exp.date || exp.created_at;
+      const dateStr = rawDate ? rawDate.substring(0, 10) : "";
       const desc = (exp.description || "").replace(/"/g, '""');
       const note = (exp.note || "").replace(/"/g, '""');
       return [
@@ -208,7 +209,7 @@ const Expenses = () => {
       const context = expenses.slice(0, 20).map((exp) => ({
         category: exp.category,
         amount: Number(exp.amount || 0),
-        created_at: exp.created_at,
+        date: exp.date || exp.created_at,
       }));
       const res = await API.post("/ai/chat", {
         message: "Explain this",

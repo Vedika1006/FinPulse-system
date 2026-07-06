@@ -35,6 +35,11 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
+# Same "large chat model" knob as ai_service.py's GROQ_CHAT_MODEL — kept as
+# its own env read here since services in this codebase don't share a config
+# module, but the env var name matches so one setting updates both.
+GROQ_FALLBACK_MODEL = os.getenv("GROQ_CHAT_MODEL", "llama-3.3-70b-versatile")
+
 
 
 # ─── Merchant knowledge base (200+ Indian merchants) ─────────────────
@@ -829,8 +834,7 @@ Reply ONLY with JSON, no markdown:
 
         resp = client.chat.completions.create(
 
-            # TODO: update to current model — see Batch 1 fix
-            model="llama-3.3-70b-versatile",
+            model=GROQ_FALLBACK_MODEL,
 
             messages=[{"role": "user", "content": prompt}],
 

@@ -23,10 +23,11 @@ def compute_user_memory(db: Session, user_id: int, month: Optional[str] = None) 
     now = datetime.utcnow()
     since = now - timedelta(days=30)
     m = month or _current_month_utc()
+    effective_date = func.coalesce(Expense.date, Expense.created_at)
 
     top = (
         db.query(Expense.category, func.sum(Expense.amount).label("total"))
-        .filter(Expense.user_id == user_id, Expense.created_at >= since)
+        .filter(Expense.user_id == user_id, effective_date >= since)
         .group_by(Expense.category)
         .order_by(func.sum(Expense.amount).desc())
         .first()
@@ -37,14 +38,14 @@ def compute_user_memory(db: Session, user_id: int, month: Optional[str] = None) 
 
     total_30 = (
         db.query(func.coalesce(func.sum(Expense.amount), 0))
-        .filter(Expense.user_id == user_id, Expense.created_at >= since)
+        .filter(Expense.user_id == user_id, effective_date >= since)
         .scalar()
     ) or 0
     total_30_f = float(total_30)
 
     total_expense_month = (
         db.query(func.coalesce(func.sum(Expense.amount), 0))
-        .filter(Expense.user_id == user_id, Expense.created_at >= datetime.strptime(m, "%Y-%m").replace(day=1))
+        .filter(Expense.user_id == user_id, effective_date >= datetime.strptime(m, "%Y-%m").replace(day=1))
         .scalar()
     ) or 0
     total_expense_month_f = float(total_expense_month)

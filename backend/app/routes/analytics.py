@@ -40,8 +40,8 @@ def _compute_health_score(db: Session, user_id: int, month: str) -> dict:
         db.query(func.coalesce(func.sum(Expense.amount), 0))
         .filter(
             Expense.user_id == user_id,
-            Expense.created_at >= start_date,
-            Expense.created_at < end_date
+            func.coalesce(Expense.date, Expense.created_at) >= start_date,
+            func.coalesce(Expense.date, Expense.created_at) < end_date
         )
         .scalar()
     )
@@ -112,8 +112,8 @@ def _compute_health_score(db: Session, user_id: int, month: str) -> dict:
         db.query(func.coalesce(func.sum(Expense.amount), 0))
         .filter(
             Expense.user_id == user_id,
-            Expense.created_at >= prev_start_date,
-            Expense.created_at < prev_end_date
+            func.coalesce(Expense.date, Expense.created_at) >= prev_start_date,
+            func.coalesce(Expense.date, Expense.created_at) < prev_end_date
         )
         .scalar()
     )
@@ -258,8 +258,8 @@ def _top_category_in_range(
         db.query(func.lower(Expense.category), func.sum(Expense.amount))
         .filter(
             Expense.user_id == user_id,
-            Expense.created_at >= start_date,
-            Expense.created_at < end_date,
+            func.coalesce(Expense.date, Expense.created_at) >= start_date,
+            func.coalesce(Expense.date, Expense.created_at) < end_date,
         )
         .group_by(func.lower(Expense.category))
         .order_by(func.sum(Expense.amount).desc())
@@ -288,8 +288,8 @@ def get_insight(
         db.query(func.coalesce(func.sum(Expense.amount), 0))
         .filter(
             Expense.user_id == user_id,
-            Expense.created_at >= start_date,
-            Expense.created_at < end_date,
+            func.coalesce(Expense.date, Expense.created_at) >= start_date,
+            func.coalesce(Expense.date, Expense.created_at) < end_date,
         )
         .scalar()
     ) or 0
@@ -326,9 +326,10 @@ def monthly_trend(
     db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user)
 ):
+    effective_date = func.coalesce(Expense.date, Expense.created_at)
     result = (
         db.query(
-            extract("month", Expense.created_at).label("month"),
+            extract("month", effective_date).label("month"),
             func.sum(Expense.amount).label("total")
         )
         .filter(Expense.user_id == user_id)
@@ -389,9 +390,10 @@ def get_behavior_fingerprint(
     ).scalar()
     total_income = float(income_val or 0.0)
 
+    effective_date = func.coalesce(Expense.date, Expense.created_at)
     history = db.query(
-        extract('year', Expense.created_at).label('year'),
-        extract('month', Expense.created_at).label('month'),
+        extract('year', effective_date).label('year'),
+        extract('month', effective_date).label('month'),
         func.sum(Expense.amount).label('total')
     ).filter(
         Expense.user_id == user_id
@@ -408,8 +410,8 @@ def get_behavior_fingerprint(
         func.sum(Expense.amount).label('total')
     ).filter(
         Expense.user_id == user_id,
-        extract('year', Expense.created_at) == now.year,
-        extract('month', Expense.created_at) == now.month
+        extract('year', effective_date) == now.year,
+        extract('month', effective_date) == now.month
     ).group_by(Expense.category).order_by(func.sum(Expense.amount).desc()).first()
     
     top_category = top_cat[0] if top_cat else "None"
@@ -452,86 +454,6 @@ def get_behavior_fingerprint(
         "insight": insight
     }
 
-"""@router.get("/anomalies")
-def get_expense_anomalies(
-    db: Session = Depends(get_db),
-    user_id: int = Depends(get_current_user)
-):
-    import math
-    from collections import defaultdict
-    now = datetime.utcnow()
-    
-    expenses = db.query(Expense).filter(Expense.user_id == user_id).all()
-    if not expenses:
-        return {"anomalies": []}
-        
-    category_data = defaultdict(list)
-    current_month_expenses = []
-    
-    for exp in expenses:
-        category = exp.category.lower()
-        amount = float(exp.amount)
-        if exp.created_at.year == now.year and exp.created_at.month == now.month:
-            current_month_expenses.append(exp)
-        else:
-            category_data[category].append(amount)
-            
-    anomalies = []
-    
-    for exp in current_month_expenses:
-        cat = exp.category.lower()
-        amount = float(exp.amount)
-        hist = category_data.get(cat, [])
-        
-        if len(hist) < 2:
-            if len(hist) == 1:
-                mean = hist[0]
-                if mean > 0 and amount > mean * 1.5:
-                    ratio = amount / mean
-                    severity = "high" if ratio > 3 else "medium" if ratio > 2 else "low"
-                    anomalies.append({
-                        "amount": amount,
-                        "category": exp.category,
-                        "date": exp.created_at.strftime("%Y-%m-%d"),
-                        "reason": f"You spent {ratio:.1f}x more than your previous record.",
-                        "severity": severity
-                    })
-            continue
-            
-        mean = sum(hist) / len(hist)
-        variance = sum((x - mean) ** 2 for x in hist) / len(hist)
-        std_dev = math.sqrt(variance)
-        
-        if std_dev == 0:
-            if mean > 0 and amount > mean * 1.5:
-                ratio = amount / mean
-                severity = "high" if ratio > 3 else "medium" if ratio > 2 else "low"
-                anomalies.append({
-                    "amount": amount,
-                    "category": exp.category,
-                    "date": exp.created_at.strftime("%Y-%m-%d"),
-                    "reason": f"You spent {ratio:.1f}x your usual amount.",
-                    "severity": severity
-                })
-            continue
-            
-        z_score = (amount - mean) / std_dev
-        
-        if z_score > 2:
-            severity = "high" if z_score > 3 else "medium"
-            anomalies.append({
-                "amount": amount,
-                "category": exp.category,
-                "date": exp.created_at.strftime("%Y-%m-%d"),
-                "reason": f"This is unusually high. Typical spend is around ₹{mean:.0f}.",
-                "severity": severity
-            })
-
-    severity_order = {"high": 1, "medium": 2, "low": 3}
-    anomalies.sort(key=lambda x: severity_order.get(x["severity"], 4))
-            
-    return {"anomalies": anomalies}
-"""
 @router.get("/anomalies")
 def get_expense_anomalies(
     db: Session = Depends(get_db),

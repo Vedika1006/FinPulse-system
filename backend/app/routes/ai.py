@@ -56,15 +56,17 @@ def ai_chat(
     try:
         start, end = _month_range(month)
 
+        effective_date = func.coalesce(Expense.date, Expense.created_at)
+
         total_expense = (
             db.query(func.coalesce(func.sum(Expense.amount), 0))
-            .filter(Expense.user_id == user_id, Expense.created_at >= start, Expense.created_at < end)
+            .filter(Expense.user_id == user_id, effective_date >= start, effective_date < end)
             .scalar()
         ) or 0
 
         breakdown_rows = (
             db.query(func.lower(Expense.category), func.coalesce(func.sum(Expense.amount), 0))
-            .filter(Expense.user_id == user_id, Expense.created_at >= start, Expense.created_at < end)
+            .filter(Expense.user_id == user_id, effective_date >= start, effective_date < end)
             .group_by(func.lower(Expense.category))
             .all()
         )

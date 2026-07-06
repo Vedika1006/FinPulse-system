@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from fastapi.responses import JSONResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
@@ -68,11 +69,12 @@ async def preview_csv_import(
     debits = [t for t in parsed if t.get("type") == "debit"]
     credits = [t for t in parsed if t.get("type") == "credit"]
 
-    # Fetch last 90 days of this user's expenses for duplicate comparison
+    # Fetch last 90 days of this user's expenses (by transaction date, not
+    # row-insert time) for duplicate comparison
     cutoff = datetime.utcnow() - timedelta(days=90)
     existing = (
         db.query(Expense)
-        .filter(Expense.user_id == user_id, Expense.created_at >= cutoff)
+        .filter(Expense.user_id == user_id, func.coalesce(Expense.date, Expense.created_at) >= cutoff)
         .all()
     )
 

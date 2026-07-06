@@ -8,17 +8,26 @@ from groq import Groq
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+
+# Groq periodically deprecates/decommissions model IDs — llama3-70b-8192 and
+# mixtral-8x7b-32768 are already gone; llama-3.1-8b-instant and
+# llama-3.3-70b-versatile were announced deprecated on 2026-06-17 (still
+# active as of this writing, confirmed via client.models.list()). Model IDs
+# are env-configurable so a future deprecation only needs an env var change,
+# not a code change.
+GROQ_CHAT_MODEL = os.getenv("GROQ_CHAT_MODEL", "llama-3.3-70b-versatile")
+GROQ_FAST_MODEL = os.getenv("GROQ_FAST_MODEL", "llama-3.1-8b-instant")
+GROQ_MODEL = os.getenv("GROQ_MODEL", GROQ_FAST_MODEL)  # back-compat alias
 
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 FALLBACK_LINE = "AI insights temporarily unavailable. Try reducing unnecessary expenses."
 MODEL_CANDIDATES = [
     GROQ_MODEL,
-    "llama-3.1-8b-instant",
-    "llama-3.3-70b-versatile",
-    "llama3-70b-8192",
-    "mixtral-8x7b-32768",
+    GROQ_CHAT_MODEL,
+    GROQ_FAST_MODEL,
+    "openai/gpt-oss-120b",
+    "qwen/qwen3-32b",
 ]
 
 

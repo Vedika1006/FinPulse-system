@@ -378,7 +378,7 @@ const Dashboard = () => {
     const m = Number(selectedMonthNum);
     if (!m || !Array.isArray(allExpenses)) return [];
     return allExpenses.filter((e) => {
-      const ts = e?.created_at ? new Date(e.created_at) : null;
+      const ts = e?.date ? new Date(e.date) : e?.created_at ? new Date(e.created_at) : null;
       return ts && !Number.isNaN(ts.getTime()) && ts.getMonth() + 1 === m;
     });
   }, [allExpenses, selectedMonthNum]);
@@ -420,7 +420,7 @@ const Dashboard = () => {
     const monthCats = new Set(
       allExpenses
         .filter((e) => {
-          const ts = e?.created_at ? new Date(e.created_at) : null;
+          const ts = e?.date ? new Date(e.date) : e?.created_at ? new Date(e.created_at) : null;
           return ts && !Number.isNaN(ts.getTime()) && ts.getMonth() + 1 === Number(m);
         })
         .map((e) => String(e?.category || "").trim().toLowerCase())

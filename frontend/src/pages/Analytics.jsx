@@ -192,7 +192,8 @@ export default function Analytics() {
     const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").replace(/[^\w\s]/g, "").trim();
     const buckets = new Map();
     for (const e of rows) {
-      const ts = e?.created_at ? new Date(e.created_at) : null;
+      const rawDate = e?.date || e?.created_at;
+      const ts = rawDate ? new Date(rawDate) : null;
       if (!ts || Number.isNaN(ts.getTime()) || ts < cutoff) continue;
       const amt      = Math.round(Number(e.amount || 0));
       const desc     = norm(e.description || e.title || "");
@@ -264,7 +265,8 @@ export default function Analytics() {
     const cm = new Date().getMonth();
     const cy = new Date().getFullYear();
     return allExpenses.filter((e) => {
-      const ts = e?.created_at ? new Date(e.created_at) : null;
+      const rawDate = e?.date || e?.created_at;
+      const ts = rawDate ? new Date(rawDate) : null;
       return ts && ts.getMonth() === cm && ts.getFullYear() === cy;
     });
   }, [allExpenses]);

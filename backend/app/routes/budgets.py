@@ -244,8 +244,8 @@ def budget_vs_actual(
         func.sum(models.Expense.amount),
     ).filter(
         models.Expense.user_id == user_id,
-        models.Expense.created_at >= start_date,
-        models.Expense.created_at < end_date
+        func.coalesce(models.Expense.date, models.Expense.created_at) >= start_date,
+        func.coalesce(models.Expense.date, models.Expense.created_at) < end_date
     ).group_by(func.lower(models.Expense.category)).all()
 
     expense_dict = {cat: total for cat, total in expense_totals}
@@ -271,8 +271,8 @@ def budget_vs_actual(
         func.sum(models.Expense.amount),
     ).filter(
         models.Expense.user_id == user_id,
-        models.Expense.created_at >= prev_start,
-        models.Expense.created_at < prev_end,
+        func.coalesce(models.Expense.date, models.Expense.created_at) >= prev_start,
+        func.coalesce(models.Expense.date, models.Expense.created_at) < prev_end,
     ).group_by(func.lower(models.Expense.category)).all()
     prev_expense_dict = {cat: float(total) for cat, total in prev_expense_totals}
 
