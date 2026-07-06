@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -12,6 +14,7 @@ from app import models
 from app.models import Expense, Budget, Income
 
 router = APIRouter(prefix="/ai", tags=["AI"])
+logger = logging.getLogger("uvicorn.error")
 
 
 def _parse_month_or_now(value: str | None) -> str:
@@ -150,4 +153,8 @@ def parse_expense(
         result = parse_expense_from_text(payload.text)
         return result
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"AI error: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail="Could not understand that expense. Try a simpler format like '500 food lunch'.",
+        )

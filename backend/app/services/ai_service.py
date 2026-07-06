@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -6,6 +7,8 @@ from dotenv import load_dotenv
 from groq import Groq
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+logger = logging.getLogger("uvicorn.error")
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -720,5 +723,6 @@ Text: "{text}"
         except Exception as e:
             last_error = e
             continue
-            
-    raise ValueError(f"Failed to parse expense: {str(last_error)}")
+
+    logger.error(f"AI error: parse_expense_from_text failed for all models: {last_error}")
+    raise ValueError("Could not understand that expense. Try a simpler format like '500 food lunch'.")

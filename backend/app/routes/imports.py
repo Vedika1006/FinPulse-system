@@ -5,6 +5,7 @@ POST /import/csv/preview  — parse + annotate without saving to DB
 POST /import/csv/confirm  — bulk insert approved transactions
 """
 
+import logging
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
@@ -25,6 +26,7 @@ from app.services.csv_import_service import (
 )
 
 router = APIRouter(prefix="/import", tags=["Import"])
+logger = logging.getLogger("uvicorn.error")
 
 
 @router.post("/csv/preview", response_model=ImportPreviewResponse)
@@ -51,9 +53,10 @@ async def preview_csv_import(
     except ValueError as exc:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
     except Exception as exc:
+        logger.error(f"CSV import error: {exc}")
         return JSONResponse(
             status_code=400,
-            content={"detail": f"Could not parse the uploaded file: {exc}"},
+            content={"detail": "Could not parse this CSV file. Please check the format and try again."},
         )
 
     if not parsed:
@@ -181,6 +184,7 @@ def confirm_csv_import(
         except Exception:
             continue
 
+    income_merged = 0
     for month_key, total in income_by_month.items():
         existing = (
             db.query(Income)
@@ -190,6 +194,12 @@ def confirm_csv_import(
         if existing is None:
             db.add(Income(user_id=user_id, month=month_key, amount=round(total, 2)))
             income_imported += 1
+        else:
+            # A month can already have an income record (manually entered, or
+            # from a prior import) — add to it rather than silently dropping
+            # these credits.
+            existing.amount = round(float(existing.amount or 0) + total, 2)
+            income_merged += 1
 
     if income_by_month:
         db.commit()
@@ -204,4 +214,9 @@ def confirm_csv_import(
     except Exception:
         pass
 
-    return {"imported_count": imported, "skipped_count": skipped, "income_imported": income_imported}
+    return {
+        "imported_count": imported,
+        "skipped_count": skipped,
+        "income_imported": income_imported,
+        "income_merged": income_merged,
+    }

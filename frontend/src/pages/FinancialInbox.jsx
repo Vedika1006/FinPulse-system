@@ -16,6 +16,25 @@ const fadeUp = (delay = 0) => ({
 
 // ── Constants ───────────────────────────────────────────────────────────────
 const TABS = ["All", "Needs Action", "Bills", "Savings", "Risk", "AI Advice"];
+const DISMISSED_KEY = "finpulse_dismissed_inbox";
+
+function loadDismissed() {
+  try {
+    const raw = localStorage.getItem(DISMISSED_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDismissed(set) {
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(Array.from(set)));
+  } catch {
+    // localStorage unavailable/full — dismiss state just won't persist this session
+  }
+}
 
 const TYPE_CFG = {
   budget:  { borderCls: "border-l-amber-500",  iconBg: "bg-amber-50 dark:bg-amber-500/10",   Icon: AlertTriangle, iconCls: "text-amber-600 dark:text-amber-400"   },
@@ -110,11 +129,21 @@ export default function FinancialInbox() {
 
   const [items,     setItems]     = useState([]);
   const [loading,   setLoading]   = useState(true);
-  const [dismissed, setDismissed] = useState(new Set());
+  const [dismissed, setDismissed] = useState(() => loadDismissed());
   const [activeTab, setActiveTab] = useState("All");
 
   const dismiss = useCallback((id) => {
-    setDismissed((prev) => new Set([...prev, id]));
+    setDismissed((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      saveDismissed(next);
+      return next;
+    });
+  }, []);
+
+  const clearDismissed = useCallback(() => {
+    setDismissed(new Set());
+    saveDismissed(new Set());
   }, []);
 
   useEffect(() => {
@@ -235,11 +264,22 @@ export default function FinancialInbox() {
   return (
     <div className="mx-auto max-w-2xl p-4">
       {/* Header */}
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Financial Inbox</h2>
-        <p className="text-sm text-app-muted mt-1">
-          Your money updates, decisions and reminders in one place
-        </p>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Financial Inbox</h2>
+          <p className="text-sm text-app-muted mt-1">
+            Your money updates, decisions and reminders in one place
+          </p>
+        </div>
+        {dismissed.size > 0 && (
+          <button
+            type="button"
+            onClick={clearDismissed}
+            className="flex-shrink-0 text-xs font-medium text-app-muted hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            Clear dismissed ({dismissed.size})
+          </button>
+        )}
       </div>
 
       {/* Filter tabs */}

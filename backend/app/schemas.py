@@ -343,6 +343,7 @@ class ImportConfirmResponse(BaseModel):
     imported_count: int
     skipped_count: int
     income_imported: int = 0
+    income_merged: int = 0
 
 
 class BudgetSuggestionResponse(BaseModel):

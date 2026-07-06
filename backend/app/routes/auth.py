@@ -109,6 +109,33 @@ def update_me(
     return user
 
 
+# ✅ DELETE ACCOUNT (permanent — deletes every row owned by this user)
+@router.delete("/account")
+def delete_account(
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user),
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise NotFoundException("User not found")
+
+    # AutoSaveRule references Goal (goal_id FK), so it must be deleted first.
+    db.query(models.AutoSaveRule).filter(models.AutoSaveRule.user_id == user_id).delete()
+    db.query(models.Expense).filter(models.Expense.user_id == user_id).delete()
+    db.query(models.Budget).filter(models.Budget.user_id == user_id).delete()
+    db.query(models.Income).filter(models.Income.user_id == user_id).delete()
+    db.query(models.Goal).filter(models.Goal.user_id == user_id).delete()
+    db.query(models.Recurring).filter(models.Recurring.user_id == user_id).delete()
+    db.query(models.Debt).filter(models.Debt.user_id == user_id).delete()
+    db.query(models.TaxInvestment).filter(models.TaxInvestment.user_id == user_id).delete()
+    db.query(models.UserMemory).filter(models.UserMemory.user_id == user_id).delete()
+
+    db.delete(user)
+    db.commit()
+
+    return {"success": True, "message": "Account deleted"}
+
+
 # ✅ CHANGE PASSWORD
 @router.put("/password")
 def change_password(

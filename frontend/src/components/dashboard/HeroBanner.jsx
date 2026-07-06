@@ -83,7 +83,7 @@ const HeroBanner = ({ displayName, health, cashflowPrediction, formatCurrency, i
 
       {totalIncome > 0 ? (
         <>
-          <div className="mt-4 pt-4 border-t border-white/5 dark:border-white/5 flex items-center justify-between">
+          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-app-accent/10 flex items-center justify-center flex-shrink-0">
                 <Wallet className="w-5 h-5 text-app-accent" />
@@ -97,14 +97,14 @@ const HeroBanner = ({ displayName, health, cashflowPrediction, formatCurrency, i
               View cashflow <ArrowRight className="w-3 h-3" />
             </button>
           </div>
-          <p className="text-xs text-app-muted mt-1.5 ml-13">Based on your income, budgets, and {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} left this month</p>
+          <p className="text-xs text-app-muted mt-1.5 ml-14">Based on your income, budgets, and {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} left this month</p>
         </>
       ) : (
-        <div className="mt-4 pt-4 border-t border-white/5 dark:border-white/5">
+        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/5">
           <div className="flex items-center gap-3 bg-app-accent/5 border border-app-accent/15 rounded-xl p-3">
             <Wallet className="w-5 h-5 text-app-accent flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm text-app-ink dark:text-white font-medium">Add your income to see daily safe-to-spend</p>
+              <p className="text-sm text-gray-900 dark:text-white font-medium">Add your income to see daily safe-to-spend</p>
               <p className="text-xs text-app-muted">We'll calculate how much you can spend each day</p>
             </div>
             <button className="text-xs bg-app-accent text-white rounded-lg px-3 py-1.5 whitespace-nowrap">Add Income</button>

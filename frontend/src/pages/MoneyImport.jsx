@@ -413,8 +413,14 @@ export default function MoneyImport() {
             </p>
             {importResult.income_imported > 0 && (
               <p className="text-xs text-app-muted">
-                Income set for {importResult.income_imported} month
+                Income set for {importResult.income_imported} new month
                 {importResult.income_imported !== 1 ? "s" : ""}.
+              </p>
+            )}
+            {importResult.income_merged > 0 && (
+              <p className="text-xs text-app-muted">
+                Income added to {importResult.income_merged} existing month
+                {importResult.income_merged !== 1 ? "s" : ""}.
               </p>
             )}
             {importResult.skipped_count > 0 && (

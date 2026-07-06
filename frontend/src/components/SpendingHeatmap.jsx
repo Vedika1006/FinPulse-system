@@ -57,6 +57,8 @@ function buildHeatmapData(expenses) {
   }
 
   const daysWithData = Object.keys(dailyTotals).length;
+  const spendingAmounts = Object.values(dailyTotals).filter((v) => v > 0);
+  const daysWithSpending = spendingAmounts.length;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -71,8 +73,11 @@ function buildHeatmapData(expenses) {
     allDates.push(new Date(d));
   }
 
-  const rangeTotal = allDates.reduce((s, d) => s + (dailyTotals[toKey(d)] || 0), 0);
-  const dailyAverage = allDates.length > 0 ? rangeTotal / allDates.length : 0;
+  // Average only over days that actually had spending — including the many
+  // zero-spend days would drag the baseline so low that almost any real
+  // expense reads as "high" (red), collapsing the intended color gradation.
+  const dailyAverage =
+    daysWithSpending > 0 ? spendingAmounts.reduce((s, v) => s + v, 0) / daysWithSpending : 0;
 
   const numWeeks = Math.ceil(allDates.length / 7);
   const columns = [];
@@ -104,7 +109,7 @@ function buildHeatmapData(expenses) {
     columns.push(column);
   }
 
-  return { daysWithData, columns, weekMonthLabels, numWeeks };
+  return { daysWithData, daysWithSpending, columns, weekMonthLabels, numWeeks };
 }
 
 function formatCellDate(d) {
@@ -128,12 +133,12 @@ function HeatCell({ cell }) {
 }
 
 export default function SpendingHeatmap({ expenses }) {
-  const { daysWithData, columns, weekMonthLabels, numWeeks } = useMemo(
+  const { daysWithData, daysWithSpending, columns, weekMonthLabels, numWeeks } = useMemo(
     () => buildHeatmapData(expenses),
     [expenses]
   );
 
-  if (daysWithData < 14) return null;
+  if (daysWithData < 14 || daysWithSpending < 3) return null;
 
   return (
     <motion.div

@@ -7,8 +7,21 @@ import { useNavigate } from "react-router-dom";
 import { Check, LogOut, ShieldAlert, Key, X, AlertTriangle } from "lucide-react";
 
 /* ── Confirm Dialog ────────────────────────────────────────────────────── */
-const ConfirmDialog = ({ open, title, message, onConfirm, onCancel }) => {
+const ConfirmDialog = ({
+  open,
+  title,
+  message,
+  confirmLabel = "Delete",
+  onConfirm,
+  onCancel,
+  requireText,
+  inputValue,
+  onInputChange,
+  loading,
+}) => {
   if (!open) return null;
+  const confirmDisabled =
+    loading || (requireText != null && inputValue.trim().toLowerCase() !== requireText.trim().toLowerCase());
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
@@ -26,20 +39,37 @@ const ConfirmDialog = ({ open, title, message, onConfirm, onCancel }) => {
             <p className="mt-1 text-xs text-gray-500 dark:text-app-muted">{message}</p>
           </div>
         </div>
+        {requireText != null && (
+          <div className="mb-4">
+            <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">
+              Type <span className="font-semibold text-gray-900 dark:text-white">{requireText}</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={inputValue}
+              onChange={onInputChange}
+              disabled={loading}
+              autoFocus
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-500/20 disabled:opacity-60 dark:border-white/10 dark:bg-black/20 dark:text-gray-100"
+            />
+          </div>
+        )}
         <div className="flex gap-3">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-black/20 dark:text-gray-200"
+            disabled={loading}
+            className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-60 dark:border-white/10 dark:bg-black/20 dark:text-gray-200"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="flex-1 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
+            disabled={confirmDisabled}
+            className="flex-1 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Delete
+            {loading ? "Deleting…" : confirmLabel}
           </button>
         </div>
       </div>
@@ -174,6 +204,8 @@ export default function Settings() {
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current: "", new: "" });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const [profile, setProfile] = useState({
     name: "",
@@ -240,13 +272,33 @@ export default function Settings() {
   };
 
   const handleDeleteAccount = () => {
+    setDeleteConfirmText("");
     setShowDeleteConfirm(true);
   };
 
-  const confirmDeleteAccount = () => {
+  const cancelDeleteAccount = () => {
     setShowDeleteConfirm(false);
-    clearAuthToken();
-    navigate("/login");
+    setDeleteConfirmText("");
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (deleteConfirmText.trim().toLowerCase() !== profile.email.trim().toLowerCase()) return;
+    setDeletingAccount(true);
+    try {
+      await API.delete("/auth/account");
+      setShowDeleteConfirm(false);
+      clearAuthToken();
+      navigate("/login");
+    } catch (err) {
+      showToast(
+        err.response?.data?.detail || err.response?.data?.error || "Could not delete account. Please try again.",
+        "error"
+      );
+      // Do NOT log the user out or clear the dialog — the account still
+      // exists, so they still need access to it.
+    } finally {
+      setDeletingAccount(false);
+    }
   };
 
   const inputClass =
@@ -267,9 +319,14 @@ export default function Settings() {
       <ConfirmDialog
         open={showDeleteConfirm}
         title="Delete Account"
-        message="Are you absolutely sure you want to delete your account? This action cannot be undone."
+        message="This permanently deletes your account and every piece of data in it — expenses, income, budgets, goals, subscriptions, loans, tax records, everything. This cannot be undone."
+        confirmLabel="Delete my account"
+        requireText={profile.email}
+        inputValue={deleteConfirmText}
+        onInputChange={(e) => setDeleteConfirmText(e.target.value)}
+        loading={deletingAccount}
         onConfirm={confirmDeleteAccount}
-        onCancel={() => setShowDeleteConfirm(false)}
+        onCancel={cancelDeleteAccount}
       />
 
       <div className="mx-auto max-w-4xl space-y-6 pb-12">
