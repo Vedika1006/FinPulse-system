@@ -270,8 +270,14 @@ export default function CashflowCalendar() {
     [calendarEvents]
   );
 
-  const reserved = totalBudget > 0 ? totalBudget : income * 0.3;
-  const availableToSpend = Math.max(income - reserved - totalMonthExpenses, 0);
+  // Reserved = what's set aside for the month (budget, or a 30% estimate if
+  // no budget is set) — but never less than what's actually been spent,
+  // since overspending the budget means that money is committed regardless.
+  // Money already spent is PART OF what's reserved, not separate from it,
+  // so it must not also be subtracted again below — that would double-count
+  // it and make safe-to-spend collapse to ~0 even with budget headroom left.
+  const reserved = Math.max(totalBudget > 0 ? totalBudget : income * 0.3, totalMonthExpenses);
+  const availableToSpend = Math.max(income - reserved, 0);
   const safeToSpendPerDay =
     daysRemaining > 0 ? Math.round(availableToSpend / daysRemaining) : 0;
 
@@ -311,8 +317,11 @@ export default function CashflowCalendar() {
 
   // Selected day detail
   const selectedDayEvents = selectedDay ? (eventsByDate[selectedDay] || []) : [];
+  // Goals are targets/aspirations, not real cash leaving your account on
+  // their deadline — exclude them from "Total outgoing" (they still show
+  // up in the event list below, just don't count toward the sum).
   const selectedDayTotal = selectedDayEvents
-    .filter((e) => e.type !== "income" && e.type !== "budget")
+    .filter((e) => e.type !== "income" && e.type !== "budget" && e.type !== "goal")
     .reduce((s, e) => s + (e.amount || 0), 0);
 
   const formattedSelectedDate = selectedDay

@@ -339,6 +339,10 @@ const Dashboard = () => {
     try {
       const res = await API.post("/income/", { month, amount: amt });
       setIncome(res.data || null);
+      // Keep the month drill-down table's income figure in sync — it reads
+      // from incomeByMonth, which otherwise only refreshes when that modal
+      // is (re)opened, not immediately after this save.
+      setIncomeByMonth((prev) => ({ ...prev, [month]: amt }));
       showToast("Income saved", "success");
       // Show one toast per auto-save rule that was applied
       const autoSaves = res.data?.auto_saves ?? [];

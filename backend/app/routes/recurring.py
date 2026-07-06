@@ -69,6 +69,15 @@ def create_recurring(
         .first()
     )
     if existing:
+        # Re-confirming a tracked subscription (e.g. after a price change)
+        # should update it, not silently keep the stale amount/category/
+        # frequency/due date from when it was first tracked.
+        existing.amount = payload.amount
+        existing.category = payload.category
+        existing.frequency = payload.frequency
+        existing.next_due_date = payload.next_due_date
+        db.commit()
+        db.refresh(existing)
         return existing
 
     item = models.Recurring(

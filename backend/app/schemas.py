@@ -296,6 +296,13 @@ class GoalResponse(BaseModel):
 class GoalUpdate(BaseModel):
     saved_amount: float
 
+    @field_validator("saved_amount")
+    @classmethod
+    def validate_saved_amount(cls, value: float) -> float:
+        if value is not None and value < 0:
+            raise ValueError("Saved amount cannot be negative")
+        return value
+
 class AIExpenseParseRequest(BaseModel):
     text: str
 

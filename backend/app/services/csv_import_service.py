@@ -10,6 +10,7 @@ Root cause of previous bug:
   then hand pandas only the clean tabular section.
 """
 
+import difflib
 import io
 import re
 from datetime import datetime
@@ -23,16 +24,20 @@ from app.services.categorization_service import categorize_merchant
 # ── Transaction description cleaning ────────────────────────────────────────
 
 _PAYMENT_PREFIX_RE = re.compile(
-    r"^(?:NEFT|RTGS|IMPS|UPI|MMT|ACH\s*[DC]|CLG|POS|ATM\s*WDL?|ATW|INT|TRF|BIL|ECS)[/\s\-]+",
+    r"^(?:NEFT|RTGS|IMPS|UPI|MMT|ACH\s*[DC]?|CLG|POS|ATM\s*WDL?|ATW|INT|TRF|BIL|ECS|CMS|SI)[/\s\-]+",
     re.IGNORECASE,
 )
 _IFSC_RE = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$", re.IGNORECASE)
 _REFNUM_RE = re.compile(r"\b\d{6,}\b")
 _SPLIT_RE = re.compile(r"[/\-]+")
+# A 4-6 digit code immediately at the start of the (prefix-stripped) string —
+# a POS terminal ID or similar reference, never a meaningful description.
+_LEADING_NUMCODE_RE = re.compile(r"^\d{4,6}\b\s*")
 
 _PAYMENT_MODES = frozenset({
-    "neft", "rtgs", "imps", "upi", "mmt", "achd", "achc", "clg", "pos", "atm",
-    "atw", "int", "trf", "bil", "ecs", "cr", "dr",
+    "neft", "rtgs", "imps", "upi", "mmt", "achd", "achc", "ach", "clg", "pos",
+    "atm", "atw", "int", "trf", "bil", "ecs", "cms", "si", "cr", "dr",
+    "p2a", "p2p", "p2m", "p2u",  # IMPS person-to-X sub-mode codes
 })
 
 _CATEGORY_KEYWORDS: dict[str, list[str]] = {
@@ -58,12 +63,16 @@ def clean_transaction_description(desc: str) -> str:
     s = desc.strip()
     # 1. Strip leading payment-mode prefix (NEFT/, UPI-, etc.)
     s = _PAYMENT_PREFIX_RE.sub("", s).strip(" /-")
-    # 2. Split on BOTH slash and dash delimiters
+    # 2. Strip a POS terminal code / leading reference number ("1234 SWIGGY...")
+    s = _LEADING_NUMCODE_RE.sub("", s).strip()
+    # 3. Split on BOTH slash and dash delimiters
     parts = [p.strip() for p in _SPLIT_RE.split(s) if p.strip()]
-    # 3. Filter noise tokens: amounts, VPA handles, IFSC codes, mode words, "com" suffix
+    # 4. Filter noise tokens: amounts, VPA handles, IFSC codes, mode words, "com" suffix
     clean_parts = []
     for p in parts:
         pl = p.lower()
+        if p.startswith("@"):                     # bare handle with no preceding merchant part
+            continue
         if re.fullmatch(r"[\d,.]+", p):          # pure number/amount: 649.00, 12,345
             continue
         if re.fullmatch(r"\w+@\w+", p):           # UPI VPA handle: netflix@icici
@@ -74,6 +83,8 @@ def clean_transaction_description(desc: str) -> str:
             continue
         if pl == "com":                            # payment-network suffix artifact
             continue
+        if len(p) >= 6 and sum(c.isdigit() for c in p) / len(p) >= 0.5:
+            continue                               # reference/transaction ID: N123456789
         p = _REFNUM_RE.sub("", p).strip()         # strip long digit runs within the part
         if p:
             clean_parts.append(p)
@@ -410,22 +421,24 @@ def detect_duplicates(parsed_transactions: list[dict],
             if date_diff == 0:
                 confidence = 0.95
             elif date_diff <= 2:
-                confidence = 0.70
+                # Same amount + rough timing alone isn't enough evidence —
+                # descriptions need to line up too before this counts as a
+                # likely duplicate (previously this was 0.70, equal to the
+                # flagging threshold, so amount+timing alone always flagged
+                # regardless of description).
+                confidence = 0.40
             else:
                 continue
 
             if txn_desc and existing_desc:
                 if txn_desc in existing_desc or existing_desc in txn_desc:
-                    confidence = min(confidence + 0.04, 1.0)
+                    ratio = 1.0  # one description fully contains the other
                 else:
-                    shorter = min(len(txn_desc), len(existing_desc))
-                    if shorter > 0:
-                        overlap = sum(
-                            1 for a, b in zip(txn_desc[:shorter], existing_desc[:shorter])
-                            if a == b
-                        )
-                        if overlap / shorter >= 0.6:
-                            confidence = min(confidence + 0.03, 1.0)
+                    ratio = difflib.SequenceMatcher(None, txn_desc, existing_desc).ratio()
+                if ratio > 0.8:
+                    confidence = min(confidence + 0.40, 1.0)
+                elif ratio > 0.6:
+                    confidence = min(confidence + 0.20, 1.0)
 
             best_confidence = max(best_confidence, confidence)
 
