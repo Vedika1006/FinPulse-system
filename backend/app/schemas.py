@@ -602,3 +602,176 @@ class DebtSummaryResponse(BaseModel):
     total_interest_remaining: float
     active_loans: int
     debt_free_date: Optional[str] = None
+
+
+# ── 80C Tax Tracker schemas ────────────────────────────────────────────────────
+
+TAX_INSTRUMENT_TYPES = {
+    "PPF", "ELSS", "NSC", "LIC", "EPF", "VPF", "FD_5yr", "SCSS", "SSY",
+    "Home_Loan_Principal", "Tuition_Fees", "NPS_80CCD",
+    "Health_Insurance_Self_80D", "Health_Insurance_Parents_80D",
+}
+TAX_FREQUENCIES = {"one_time", "monthly", "quarterly", "yearly"}
+
+
+class TaxInvestmentCreate(BaseModel):
+    instrument_type: str
+    name: str
+    amount: float
+    frequency: str
+    date: date
+
+    @field_validator("instrument_type")
+    @classmethod
+    def validate_instrument_type(cls, value: str) -> str:
+        if value not in TAX_INSTRUMENT_TYPES:
+            raise ValueError(f"instrument_type must be one of: {', '.join(sorted(TAX_INSTRUMENT_TYPES))}")
+        return value
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        v = (value or "").strip()
+        if not v:
+            raise ValueError("Name is required")
+        return v
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amount(cls, value: float) -> float:
+        if value <= 0:
+            raise ValueError("Amount must be greater than 0")
+        return value
+
+    @field_validator("frequency")
+    @classmethod
+    def validate_frequency(cls, value: str) -> str:
+        v = (value or "").strip().lower()
+        if v not in TAX_FREQUENCIES:
+            raise ValueError(f"Frequency must be one of: {', '.join(sorted(TAX_FREQUENCIES))}")
+        return v
+
+
+class TaxInvestmentUpdate(BaseModel):
+    instrument_type: Optional[str] = None
+    name: Optional[str] = None
+    amount: Optional[float] = None
+    frequency: Optional[str] = None
+    date: Optional[date] = None
+
+    @field_validator("instrument_type")
+    @classmethod
+    def validate_instrument_type(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and value not in TAX_INSTRUMENT_TYPES:
+            raise ValueError(f"instrument_type must be one of: {', '.join(sorted(TAX_INSTRUMENT_TYPES))}")
+        return value
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        v = value.strip()
+        if not v:
+            raise ValueError("Name cannot be empty")
+        return v
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amount(cls, value: Optional[float]) -> Optional[float]:
+        if value is not None and value <= 0:
+            raise ValueError("Amount must be greater than 0")
+        return value
+
+    @field_validator("frequency")
+    @classmethod
+    def validate_frequency(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        v = value.strip().lower()
+        if v not in TAX_FREQUENCIES:
+            raise ValueError(f"Frequency must be one of: {', '.join(sorted(TAX_FREQUENCIES))}")
+        return v
+
+
+class TaxInvestmentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    instrument_type: str
+    name: str
+    amount: float
+    frequency: str
+    date: date
+    financial_year: str
+    is_recurring: bool
+    created_at: datetime
+
+
+class TaxInvestmentsGrouped(BaseModel):
+    financial_year: str
+    section_80c: list[TaxInvestmentResponse]
+    section_80ccd: list[TaxInvestmentResponse]
+    section_80d: list[TaxInvestmentResponse]
+
+
+class Section80CBreakdown(BaseModel):
+    total_invested: float
+    eligible_amount: float
+    remaining_limit: float
+    percentage_utilized: float
+    limit: float
+
+
+class Section80CCDBreakdown(BaseModel):
+    total_invested: float
+    eligible_amount: float
+    remaining_limit: float
+    percentage_utilized: float
+    limit: float
+
+
+class Section80DBreakdown(BaseModel):
+    self_invested: float
+    self_eligible: float
+    self_limit: float
+    parents_invested: float
+    parents_eligible: float
+    parents_limit: float
+    combined_eligible: float
+
+
+class RegimeTaxResult(BaseModel):
+    regime: str
+    taxable_income: float
+    gross_tax: float
+    cess: float
+    total_tax: float
+    effective_tax_rate: float
+    standard_deduction: float
+
+
+class TaxSavedBreakdown(BaseModel):
+    section_80c: float
+    section_80ccd: float
+    section_80d: float
+    total: float
+
+
+class TaxSummaryResponse(BaseModel):
+    financial_year: str
+    section_80c: Section80CBreakdown
+    section_80ccd: Section80CCDBreakdown
+    section_80d: Section80DBreakdown
+    old_regime_tax: Optional[RegimeTaxResult] = None
+    tax_saved: Optional[TaxSavedBreakdown] = None
+    months_remaining_in_fy: int
+    investment_needed_per_month_80c: float
+
+
+class RegimeCompareResponse(BaseModel):
+    old_regime: RegimeTaxResult
+    new_regime: RegimeTaxResult
+    difference: float
+    better_regime: str
+    recommendation: str

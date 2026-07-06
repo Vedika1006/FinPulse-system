@@ -155,3 +155,20 @@ class Debt(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     user = relationship("User")
+
+
+class TaxInvestment(Base):
+    __tablename__ = "tax_investments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    instrument_type = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    amount = Column(Numeric(12, 2), nullable=False)
+    frequency = Column(String, nullable=False)  # "one_time"|"monthly"|"quarterly"|"yearly"
+    date = Column(Date, nullable=False)
+    financial_year = Column(String, nullable=False, index=True)  # "2026-27", auto-derived from date
+    is_recurring = Column(Boolean, default=False, nullable=False, server_default="0")
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User")

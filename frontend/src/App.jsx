@@ -10,6 +10,7 @@ import MoneyImport from "./pages/MoneyImport";
 import CashflowCalendar from "./pages/CashflowCalendar";
 import Subscriptions from "./pages/Subscriptions";
 import EMI from "./pages/EMI";
+import Tax from "./pages/Tax";
 import FinancialInbox from "./pages/FinancialInbox";
 import Layout from "./components/Layout";
 import { ToastProvider } from "./components/ToastProvider";
@@ -37,6 +38,7 @@ function App() {
                 <Route path="calendar"     element={<CashflowCalendar />}/>
                 <Route path="subscriptions" element={<Subscriptions />}  />
                 <Route path="emi"          element={<EMI />}            />
+                <Route path="tax"          element={<Tax />}             />
                 <Route path="inbox"        element={<FinancialInbox />}  />
               </Route>
             ) : (

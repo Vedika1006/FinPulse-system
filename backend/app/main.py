@@ -7,7 +7,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.database import engine, Base, SessionLocal
 from app import models
-from app.routes import auth, expenses, budgets, analytics, ai, income, goals, receipts, imports, auto_save_rules, recurring, emi
+from app.routes import auth, expenses, budgets, analytics, ai, income, goals, receipts, imports, auto_save_rules, recurring, emi, tax
 from app.services.categorization_service import _load as warm_faiss
 from app.services.recurring_service import process_due_recurring
 
@@ -200,6 +200,7 @@ app.include_router(imports.router)
 app.include_router(auto_save_rules.router)
 app.include_router(recurring.router)
 app.include_router(emi.router)
+app.include_router(tax.router)
 
 
 @app.get("/")
