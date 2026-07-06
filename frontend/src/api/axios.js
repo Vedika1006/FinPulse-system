@@ -24,8 +24,8 @@ API.interceptors.response.use(
       if (!isAuthRoute) {
         localStorage.removeItem("token");
         const path = window.location.pathname;
-        if (path !== "/login" && !path.endsWith("/login")) {
-          window.location.replace("/login");
+        if (path !== "/") {
+          window.location.replace("/?auth=login");
         }
       }
     }

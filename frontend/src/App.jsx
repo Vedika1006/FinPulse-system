@@ -4,7 +4,6 @@ import Expenses from "./pages/Expenses";
 import Budgets from "./pages/Budgets";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
-import Login from "./pages/Login";
 import LandingPage from "./pages/LandingPage";
 import MoneyImport from "./pages/MoneyImport";
 import CashflowCalendar from "./pages/CashflowCalendar";
@@ -25,7 +24,7 @@ function App() {
       <ToastProvider>
         <ErrorBoundary>
           <Routes>
-            <Route path="/login" element={<Login />} />
+            <Route path="/login" element={<Navigate to="/" replace />} />
 
             {isAuthenticated ? (
               <Route path="/" element={<Layout />}>

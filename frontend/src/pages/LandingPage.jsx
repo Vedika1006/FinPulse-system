@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { motion, useInView, useAnimation, AnimatePresence } from "framer-motion";
 import { useTheme } from "../context/ThemeContext";
 import AuthModal from "../components/AuthModal";
@@ -39,7 +39,7 @@ function StatCard({ prefix, suffix, end, label }) {
 // ─── Landing page ─────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const { theme, toggleTheme } = useTheme();
-  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("login");
 
@@ -47,6 +47,16 @@ export default function LandingPage() {
     setModalMode(mode);
     setModalOpen(true);
   };
+
+  // Arriving via a redirect like /?auth=login (e.g. after logging out, or
+  // an old /login bookmark) should open the modal in that mode immediately.
+  useEffect(() => {
+    const authParam = searchParams.get("auth");
+    if (authParam === "login" || authParam === "signup") {
+      setModalMode(authParam);
+      setModalOpen(true);
+    }
+  }, [searchParams]);
 
   const scrollTo = (id) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
@@ -497,7 +507,7 @@ export default function LandingPage() {
             </button>
             <button
               type="button"
-              onClick={() => navigate("/login")}
+              onClick={() => openModal("login")}
               className="rounded-xl border border-white/20 px-6 py-3 text-base font-semibold text-white transition hover:bg-white/5"
             >
               Log in

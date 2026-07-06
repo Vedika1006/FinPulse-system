@@ -3,7 +3,6 @@ import { useTheme } from "../context/ThemeContext";
 import { useToast } from "../components/ToastProvider";
 import { clearAuthToken } from "../utils/auth";
 import API from "../api/axios";
-import { useNavigate } from "react-router-dom";
 import { Check, LogOut, ShieldAlert, Key, X, AlertTriangle } from "lucide-react";
 
 /* ── Confirm Dialog ────────────────────────────────────────────────────── */
@@ -196,7 +195,6 @@ const ToggleSwitch = ({ checked, onChange }) => (
 export default function Settings() {
   const { theme, setTheme, currency, setCurrency } = useTheme();
   const { showToast } = useToast();
-  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -268,7 +266,10 @@ export default function Settings() {
 
   const handleLogout = () => {
     clearAuthToken();
-    navigate("/login");
+    // Hard navigation (not react-router's navigate) so App.jsx's
+    // isAuthenticated check — computed once per mount, not reactive state —
+    // is freshly re-evaluated against the now-cleared token.
+    window.location.replace("/?auth=login");
   };
 
   const handleDeleteAccount = () => {
@@ -288,7 +289,8 @@ export default function Settings() {
       await API.delete("/auth/account");
       setShowDeleteConfirm(false);
       clearAuthToken();
-      navigate("/login");
+      // Hard navigation — see handleLogout for why.
+      window.location.replace("/?auth=login");
     } catch (err) {
       showToast(
         err.response?.data?.detail || err.response?.data?.error || "Could not delete account. Please try again.",
