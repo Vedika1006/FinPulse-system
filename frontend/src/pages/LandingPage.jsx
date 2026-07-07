@@ -100,9 +100,8 @@ export default function LandingPage() {
       {/* ── CSS keyframes for floating ₹ symbols ── */}
       <style>{`
         @keyframes floatUp {
-          0%   { transform: translateY(0px);   opacity: 0.04; }
-          50%  {                                opacity: 0.07; }
-          100% { transform: translateY(-40px); opacity: 0.04; }
+          0%   { transform: translateY(0px); }
+          100% { transform: translateY(-40px); }
         }
         .rp { animation: floatUp ease-in-out infinite; }
       `}</style>
@@ -193,7 +192,7 @@ export default function LandingPage() {
         ].map((f, i) => (
           <span
             key={i}
-            className="rp pointer-events-none absolute select-none font-bold text-cyan-500"
+            className="rp pointer-events-none absolute select-none font-bold text-teal-200/40 dark:text-cyan-400/20"
             style={{ left: f.left, top: f.top, fontSize: f.size, animationDuration: f.dur, animationDelay: f.delay }}
             aria-hidden
           >
