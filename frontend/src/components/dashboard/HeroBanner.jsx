@@ -49,7 +49,9 @@ const HeroBanner = ({ displayName, health, cashflowPrediction, formatCurrency, i
             {getGreeting()}{displayName ? `, ${displayName}` : ""}
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-app-muted">
-            {cashflowPrediction > 0 ? (
+            {cashflowPrediction == null ? (
+              "Not enough data yet for a monthly projection."
+            ) : cashflowPrediction > 0 ? (
               <>On track to spend{" "}
                 <span className="font-semibold text-gray-900 dark:text-app-ink">
                   {formatCurrency(cashflowPrediction)}

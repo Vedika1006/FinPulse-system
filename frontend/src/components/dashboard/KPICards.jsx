@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Wallet, PiggyBank } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, RefreshCw } from "lucide-react";
 
 const KPICards = ({
   income,
@@ -10,6 +10,8 @@ const KPICards = ({
   btnPrimary,
   setIncomeModal,
 }) => {
+  const currentMonthLabel = new Date().toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {/* Income */}
@@ -17,11 +19,21 @@ const KPICards = ({
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-500/10">
           <TrendingUp className="h-[18px] w-[18px] text-emerald-600 dark:text-emerald-400" aria-hidden />
         </div>
-        <p className="mt-3 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">Income</p>
+        <p className="mt-3 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">
+          Income <span className="normal-case tracking-normal text-gray-400/80 dark:text-app-muted/80">· {currentMonthLabel}</span>
+        </p>
         {income?.amount ? (
-          <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-gray-900 dark:text-app-ink">
-            {formatCurrency(totalCredit)}
-          </p>
+          <>
+            <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-gray-900 dark:text-app-ink">
+              {formatCurrency(totalCredit)}
+            </p>
+            {income?.auto_filled && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-cyan-600 dark:text-cyan-400">
+                <RefreshCw className="h-3 w-3" aria-hidden />
+                Auto-filled from recurring
+              </p>
+            )}
+          </>
         ) : (
           <button type="button" onClick={() => setIncomeModal(true)} className={`mt-2 ${btnPrimary} px-3 py-1.5 text-xs`}>
             Add income
@@ -44,7 +56,9 @@ const KPICards = ({
             </div>
           )}
         </div>
-        <p className="mt-3 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">Expenses</p>
+        <p className="mt-3 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">
+          Expenses <span className="normal-case tracking-normal text-gray-400/80 dark:text-app-muted/80">· {currentMonthLabel}</span>
+        </p>
         <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-gray-900 dark:text-app-ink">
           {formatCurrency(totalExpenses)}
         </p>
@@ -60,17 +74,17 @@ const KPICards = ({
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-500/10">
           <PiggyBank className="h-[18px] w-[18px] text-blue-600 dark:text-blue-400" aria-hidden />
         </div>
-        <p className="mt-3 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">Savings</p>
+        <p className="mt-3 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">
+          Savings <span className="normal-case tracking-normal text-gray-400/80 dark:text-app-muted/80">· {currentMonthLabel}</span>
+        </p>
         {income?.amount ? (
           <>
             <p className={`mt-1 font-mono text-3xl font-bold tabular-nums ${savings < 0 ? "text-red-500" : "text-emerald-500"}`}>
               {formatCurrency(savings)}
             </p>
-            {totalCredit > 0 && (
-              <p className="mt-1 text-xs text-gray-400 dark:text-app-muted">
-                {((savings / totalCredit) * 100).toFixed(1)}% savings rate
-              </p>
-            )}
+            <p className="mt-1 text-xs text-gray-400 dark:text-app-muted">
+              {(totalCredit > 0 ? (savings / totalCredit) * 100 : 0).toFixed(1)}% savings rate
+            </p>
           </>
         ) : (
           <p className="mt-1.5 text-sm text-gray-400 dark:text-app-muted">Add income to calculate</p>

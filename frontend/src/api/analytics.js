@@ -14,8 +14,11 @@ export async function getMonthlyTrend() {
   return res.data;
 }
 
-export async function getCategoryComparison() {
-  const res = await API.get("/analytics/category-comparison/");
+/** GET /analytics/category-comparison/?month=YYYY-MM — omit month for all-time totals */
+export async function getCategoryComparison(month) {
+  const res = await API.get("/analytics/category-comparison/", {
+    params: month ? { month } : {},
+  });
   return res.data;
 }
 

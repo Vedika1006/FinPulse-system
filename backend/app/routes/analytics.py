@@ -343,15 +343,27 @@ def monthly_trend(
 
 @router.get("/category-comparison/")
 def category_comparison(
+    month: Optional[str] = Query(None, description="YYYY-MM — restricts to this month; omit for all-time"),
     db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user)
 ):
+    query = db.query(
+        func.lower(Expense.category).label("category"),
+        func.sum(Expense.amount).label("total")
+    ).filter(Expense.user_id == user_id)
+
+    if month:
+        month_date = _parse_month(month)
+        start_date = month_date.replace(day=1)
+        if month_date.month == 12:
+            end_date = month_date.replace(year=month_date.year + 1, month=1, day=1)
+        else:
+            end_date = month_date.replace(month=month_date.month + 1, day=1)
+        effective_date = func.coalesce(Expense.date, Expense.created_at)
+        query = query.filter(effective_date >= start_date, effective_date < end_date)
+
     result = (
-        db.query(
-            func.lower(Expense.category).label("category"),
-            func.sum(Expense.amount).label("total")
-        )
-        .filter(Expense.user_id == user_id)
+        query
         .group_by(func.lower(Expense.category))
         .order_by(func.sum(Expense.amount).desc())
         .all()

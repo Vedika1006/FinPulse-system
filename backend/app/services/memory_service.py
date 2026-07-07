@@ -43,9 +43,19 @@ def compute_user_memory(db: Session, user_id: int, month: Optional[str] = None) 
     ) or 0
     total_30_f = float(total_30)
 
+    month_start = datetime.strptime(m, "%Y-%m").replace(day=1)
+    month_end = (
+        month_start.replace(year=month_start.year + 1, month=1)
+        if month_start.month == 12
+        else month_start.replace(month=month_start.month + 1)
+    )
     total_expense_month = (
         db.query(func.coalesce(func.sum(Expense.amount), 0))
-        .filter(Expense.user_id == user_id, effective_date >= datetime.strptime(m, "%Y-%m").replace(day=1))
+        .filter(
+            Expense.user_id == user_id,
+            effective_date >= month_start,
+            effective_date < month_end,
+        )
         .scalar()
     ) or 0
     total_expense_month_f = float(total_expense_month)

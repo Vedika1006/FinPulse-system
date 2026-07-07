@@ -203,6 +203,43 @@ def _ensure_schema() -> None:
                         conn.execute(text("ALTER TABLE recurring ADD COLUMN is_paused BOOLEAN DEFAULT FALSE NOT NULL"))
             except Exception:
                 pass
+
+            # Income: add is_recurring / recurring_frequency columns
+            try:
+                if str(engine.url).startswith("sqlite"):
+                    inc_cols = [r[1] for r in conn.execute(text("PRAGMA table_info(income)")).fetchall()]
+                    if "is_recurring" not in inc_cols:
+                        conn.execute(text("ALTER TABLE income ADD COLUMN is_recurring BOOLEAN DEFAULT 0 NOT NULL"))
+                    if "recurring_frequency" not in inc_cols:
+                        conn.execute(text("ALTER TABLE income ADD COLUMN recurring_frequency VARCHAR"))
+                else:
+                    exists_recurring = conn.execute(
+                        text("SELECT 1 FROM information_schema.columns WHERE table_name='income' AND column_name='is_recurring' LIMIT 1")
+                    ).first()
+                    if not exists_recurring:
+                        conn.execute(text("ALTER TABLE income ADD COLUMN is_recurring BOOLEAN DEFAULT FALSE NOT NULL"))
+                    exists_freq = conn.execute(
+                        text("SELECT 1 FROM information_schema.columns WHERE table_name='income' AND column_name='recurring_frequency' LIMIT 1")
+                    ).first()
+                    if not exists_freq:
+                        conn.execute(text("ALTER TABLE income ADD COLUMN recurring_frequency VARCHAR"))
+            except Exception:
+                pass
+
+            # Income: add auto_filled column (was this row created by process_recurring_income?)
+            try:
+                if str(engine.url).startswith("sqlite"):
+                    inc_cols2 = [r[1] for r in conn.execute(text("PRAGMA table_info(income)")).fetchall()]
+                    if "auto_filled" not in inc_cols2:
+                        conn.execute(text("ALTER TABLE income ADD COLUMN auto_filled BOOLEAN DEFAULT 0 NOT NULL"))
+                else:
+                    exists_auto_filled = conn.execute(
+                        text("SELECT 1 FROM information_schema.columns WHERE table_name='income' AND column_name='auto_filled' LIMIT 1")
+                    ).first()
+                    if not exists_auto_filled:
+                        conn.execute(text("ALTER TABLE income ADD COLUMN auto_filled BOOLEAN DEFAULT FALSE NOT NULL"))
+            except Exception:
+                pass
     except Exception:
         pass
 

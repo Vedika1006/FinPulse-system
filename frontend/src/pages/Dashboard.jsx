@@ -16,7 +16,7 @@ import { getUserDisplayName } from "../utils/auth";
 import { Modal } from "../components/ui/Modal";
 import { EmptyState } from "../components/ui/EmptyState";
 import { DashboardSkeleton } from "../components/ui/Skeleton";
-import { monthLabel } from "../utils/month";
+import { monthLabel, currentMonthParam } from "../utils/month";
 import WhatIfSimulator from "../components/WhatIfSimulator";
 import AnomalyAlerts from "../components/AnomalyAlerts";
 import HeroBanner from "../components/dashboard/HeroBanner";
@@ -42,6 +42,8 @@ const Dashboard = () => {
   const [income,               setIncome]               = useState(null);
   const [incomeModal,          setIncomeModal]          = useState(false);
   const [incomeAmount,         setIncomeAmount]         = useState("");
+  const [incomeRecurring,      setIncomeRecurring]      = useState(false);
+  const [incomeFrequency,      setIncomeFrequency]      = useState("monthly");
   const [aiExplainOpen,        setAiExplainOpen]        = useState(false);
   const [aiExplainText,        setAiExplainText]        = useState("");
   const [hoveredMonthLabel,    setHoveredMonthLabel]    = useState("");
@@ -96,7 +98,7 @@ const Dashboard = () => {
       try {
         const [t, c, e, bdg] = await Promise.all([
           getMonthlyTrend(),
-          getCategoryData(),
+          getCategoryData(currentMonthParam()),
           getRecentExpenses(),
           API.get("/budgets/"),
         ]);
@@ -114,7 +116,9 @@ const Dashboard = () => {
         setAllExpenses(Array.isArray(expRes.data) ? expRes.data : []);
         const map = {};
         for (const row of Array.isArray(incRes.data) ? incRes.data : []) {
-          if (row?.month) map[String(row.month)] = Number(row.amount || 0);
+          if (row?.month) {
+            map[String(row.month)] = { amount: Number(row.amount || 0), isRecurring: Boolean(row.is_recurring) };
+          }
         }
         setIncomeByMonth(map);
       } catch {} finally {
@@ -245,10 +249,12 @@ const Dashboard = () => {
     }));
   }, [allExpenses]);
 
+  // null = not enough days elapsed yet for a meaningful projection (distinct
+  // from 0, which means "genuinely no spending this month so far").
   const cashflowPrediction = useMemo(() => {
     const today = new Date();
     const daysElapsed = today.getDate();
-    if (daysElapsed === 0) return 0;
+    if (daysElapsed < 5) return null;
     const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     // Use local month/year (toISOString gives UTC which can be the previous day near midnight in IST)
     const currentMonth = today.getMonth();
@@ -313,12 +319,17 @@ const Dashboard = () => {
     const amt   = Number(incomeAmount);
     if (!amt || amt <= 0) return;
     try {
-      const res = await API.post("/income/", { month, amount: amt });
+      const res = await API.post("/income/", {
+        month,
+        amount: amt,
+        is_recurring: incomeRecurring,
+        recurring_frequency: incomeRecurring ? incomeFrequency : null,
+      });
       setIncome(res.data || null);
       // Keep the month drill-down table's income figure in sync — it reads
       // from incomeByMonth, which otherwise only refreshes when that modal
       // is (re)opened, not immediately after this save.
-      setIncomeByMonth((prev) => ({ ...prev, [month]: amt }));
+      setIncomeByMonth((prev) => ({ ...prev, [month]: { amount: amt, isRecurring: incomeRecurring } }));
       showToast("Income saved", "success");
       // Show one toast per auto-save rule that was applied
       const autoSaves = res.data?.auto_saves ?? [];
@@ -330,6 +341,8 @@ const Dashboard = () => {
       });
       setIncomeModal(false);
       setIncomeAmount("");
+      setIncomeRecurring(false);
+      setIncomeFrequency("monthly");
     } catch {
       showToast("Could not save income", "error");
     }
@@ -386,8 +399,15 @@ const Dashboard = () => {
     const expenseTotal = filteredMonthExpenses.reduce((sum, e) => sum + Number(e?.amount || 0), 0);
     const year         = new Date().getFullYear();
     const monthStr     = selectedMonthNum ? `${year}-${String(selectedMonthNum).padStart(2, "0")}` : "";
-    const inc          = monthStr && incomeByMonth[monthStr] != null ? Number(incomeByMonth[monthStr] || 0) : 0;
-    return { monthStr, expenseTotal, incomeTotal: inc, savings: inc - expenseTotal };
+    const monthIncome  = monthStr ? incomeByMonth[monthStr] : null;
+    const inc          = monthIncome != null ? Number(monthIncome.amount || 0) : 0;
+    return {
+      monthStr,
+      expenseTotal,
+      incomeTotal: inc,
+      incomeIsRecurring: Boolean(monthIncome?.isRecurring),
+      savings: inc - expenseTotal,
+    };
   }, [filteredMonthExpenses, incomeByMonth, selectedMonthNum]);
 
   const titleCaseCategory = (value) =>
@@ -421,7 +441,9 @@ const Dashboard = () => {
         const inc = await API.get("/income/");
         const map = {};
         for (const row of Array.isArray(inc.data) ? inc.data : []) {
-          if (row?.month) map[String(row.month)] = Number(row.amount || 0);
+          if (row?.month) {
+            map[String(row.month)] = { amount: Number(row.amount || 0), isRecurring: Boolean(row.is_recurring) };
+          }
         }
         setIncomeByMonth(map);
       } catch { setIncomeByMonth({}); }
@@ -668,8 +690,41 @@ const Dashboard = () => {
               type="number" min="0" step="1" placeholder="e.g. 85000"
               className="mt-4 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 dark:border-white/[0.08] dark:bg-app-surface dark:text-app-ink"
             />
+
+            <label className="mt-4 flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={incomeRecurring}
+                onChange={(e) => setIncomeRecurring(e.target.checked)}
+                className="h-4 w-4 accent-cyan-500"
+              />
+              <span className="text-sm text-gray-700 dark:text-app-subtle">This repeats every month</span>
+            </label>
+
+            {incomeRecurring && (
+              <div className="mt-3">
+                <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-app-muted">Frequency</label>
+                <select
+                  value={incomeFrequency}
+                  onChange={(e) => setIncomeFrequency(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-cyan-500 dark:border-white/[0.08] dark:bg-app-surface dark:text-app-ink"
+                >
+                  <option value="monthly">Monthly</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="biweekly">Biweekly</option>
+                </select>
+                <p className="mt-1.5 text-xs text-gray-400 dark:text-app-muted">
+                  We'll automatically fill in this amount for future months until you change it.
+                </p>
+              </div>
+            )}
+
             <div className="mt-5 flex justify-end gap-3">
-              <button onClick={() => setIncomeModal(false)}
+              <button onClick={() => {
+                setIncomeModal(false);
+                setIncomeRecurring(false);
+                setIncomeFrequency("monthly");
+              }}
                 className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-white/[0.08] dark:bg-transparent dark:text-app-muted dark:hover:bg-white/5">
                 Cancel
               </button>
@@ -708,12 +763,19 @@ const Dashboard = () => {
             </div>
             <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm dark:border-white/[0.08] dark:bg-app-card">
               {[
-                ["Income",  monthTotals.monthStr ? formatCurrency(monthTotals.incomeTotal) : "—"],
-                ["Expense", formatCurrency(monthTotals.expenseTotal)],
-                ["Savings", formatCurrency(monthTotals.savings)],
-              ].map(([label, val]) => (
+                ["Income",  monthTotals.monthStr ? formatCurrency(monthTotals.incomeTotal) : "—", monthTotals.incomeIsRecurring],
+                ["Expense", formatCurrency(monthTotals.expenseTotal), false],
+                ["Savings", formatCurrency(monthTotals.savings), false],
+              ].map(([label, val, isRecurring]) => (
                 <div key={label} className="flex justify-between gap-6">
-                  <span className="text-xs text-gray-500 dark:text-app-muted">{label}</span>
+                  <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-app-muted">
+                    {label}
+                    {isRecurring && (
+                      <span className="rounded-full bg-cyan-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400">
+                        Recurring
+                      </span>
+                    )}
+                  </span>
                   <span className="font-semibold tabular-nums text-gray-900 dark:text-app-ink">{val}</span>
                 </div>
               ))}

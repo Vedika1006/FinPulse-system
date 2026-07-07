@@ -41,8 +41,8 @@ const WeeklyReport = ({
       {/* KPI tiles — 4-col grid; suggested action spans full width */}
       <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
         {[
-          { label: "Change vs last week", value: weekly.prevTotal > 0 ? `${weekly.pct >= 0 ? "+" : ""}${weekly.pct.toFixed(0)}%` : "—", textClass: "font-mono text-lg tabular-nums" },
-          { label: "Weekly expense",      value: weekly.thisTotal > 0 ? formatCurrency(weekly.thisTotal) : "—",                           textClass: "font-mono text-xl font-bold tabular-nums" },
+          { label: "Change vs last week", value: (weekly.prevTotal > 0 && weekly.thisTotal > 0) ? `${weekly.pct >= 0 ? "+" : ""}${weekly.pct.toFixed(0)}%` : "N/A", textClass: "font-mono text-lg tabular-nums" },
+          { label: "Weekly expense",      value: formatCurrency(weekly.thisTotal),                                                        textClass: "font-mono text-xl font-bold tabular-nums" },
           { label: "Top category",        value: weekly.topCategory ? String(weekly.topCategory) : "—",                                  textClass: "text-lg font-bold" },
           { label: "Risk level",          value: weekly.risk,                                                                             textClass: "text-lg tabular-nums" },
           { label: "Suggested action",    value: weeklyActionLoading ? "Generating…" : weeklyAction || "—",                              textClass: "text-sm leading-snug", colSpan: "col-span-2 md:col-span-4" },
@@ -89,11 +89,13 @@ const WeeklyReport = ({
         )}
       </div>
 
-      <p className="mt-3 text-sm text-gray-500 dark:text-app-muted">
-        At this rate, you will spend{" "}
-        <span className="font-semibold text-gray-900 dark:text-app-ink">{formatCurrency(cashflowPrediction)}</span>{" "}
-        this month.
-      </p>
+      {cashflowPrediction != null && (
+        <p className="mt-3 text-sm text-gray-500 dark:text-app-muted">
+          At this rate, you will spend{" "}
+          <span className="font-semibold text-gray-900 dark:text-app-ink">{formatCurrency(cashflowPrediction)}</span>{" "}
+          this month.
+        </p>
+      )}
     </div>
   );
 };

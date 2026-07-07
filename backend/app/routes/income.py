@@ -6,6 +6,7 @@ from app.database import get_db
 from app.core.security import get_current_user
 from app.core.exceptions import BadRequestException, NotFoundException
 from app import models, schemas
+from app.services.income_service import process_recurring_income
 
 router = APIRouter(prefix="/income", tags=["Income"])
 
@@ -23,10 +24,20 @@ def upsert_income(
     )
     is_new = row is None
     if row is None:
-        row = models.Income(user_id=user_id, month=payload.month, amount=float(payload.amount))
+        row = models.Income(
+            user_id=user_id,
+            month=payload.month,
+            amount=float(payload.amount),
+            is_recurring=payload.is_recurring,
+            recurring_frequency=payload.recurring_frequency if payload.is_recurring else None,
+        )
         db.add(row)
     else:
         row.amount = float(payload.amount)
+        row.is_recurring = payload.is_recurring
+        row.recurring_frequency = payload.recurring_frequency if payload.is_recurring else None
+        # This is a deliberate user edit — it's no longer just an unconfirmed auto-fill.
+        row.auto_filled = False
 
     try:
         db.commit()
@@ -63,7 +74,15 @@ def upsert_income(
         if auto_saves:
             db.commit()
 
-    return {"id": row.id, "month": row.month, "amount": row.amount, "auto_saves": auto_saves}
+    return {
+        "id": row.id,
+        "month": row.month,
+        "amount": row.amount,
+        "is_recurring": row.is_recurring,
+        "recurring_frequency": row.recurring_frequency,
+        "auto_filled": row.auto_filled,
+        "auto_saves": auto_saves,
+    }
 
 
 @router.get("/", response_model=list[schemas.IncomeResponse])
@@ -85,6 +104,10 @@ def get_income_for_month(
     db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user),
 ):
+    # Safety net: auto-fill this month's income from a recurring rule before
+    # looking it up, same lazy pattern as process_due_recurring for expenses.
+    process_recurring_income(db, user_id=user_id, month=month)
+
     row = (
         db.query(models.Income)
         .filter(models.Income.user_id == user_id, models.Income.month == month)

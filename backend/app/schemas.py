@@ -172,9 +172,14 @@ class BudgetUpdate(BaseModel):
         return value
 
 
+RECURRING_INCOME_FREQUENCIES = {"monthly", "weekly", "biweekly"}
+
+
 class IncomeCreate(BaseModel):
     month: str  # YYYY-MM
     amount: float
+    is_recurring: bool = False
+    recurring_frequency: Optional[str] = None
 
     @field_validator("month")
     @classmethod
@@ -192,6 +197,16 @@ class IncomeCreate(BaseModel):
             raise ValueError("Income amount must be greater than 0")
         return value
 
+    @field_validator("recurring_frequency")
+    @classmethod
+    def validate_recurring_frequency(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        v = value.strip().lower()
+        if v not in RECURRING_INCOME_FREQUENCIES:
+            raise ValueError(f"recurring_frequency must be one of {sorted(RECURRING_INCOME_FREQUENCIES)}")
+        return v
+
 
 class IncomeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -199,6 +214,9 @@ class IncomeResponse(BaseModel):
     id: int
     month: str
     amount: float
+    is_recurring: bool = False
+    recurring_frequency: Optional[str] = None
+    auto_filled: bool = False
 
 
 class AutoSaveApplied(BaseModel):
@@ -210,6 +228,9 @@ class IncomeWithAutoSavesResponse(BaseModel):
     id: int
     month: str
     amount: float
+    is_recurring: bool = False
+    recurring_frequency: Optional[str] = None
+    auto_filled: bool = False
     auto_saves: list[AutoSaveApplied] = []
 
 
