@@ -882,7 +882,7 @@ export default function Analytics() {
                     <LineChart data={trendData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
                       <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
-                      <YAxis tick={axisTick} tickFormatter={(v) => `₹${v}`} axisLine={false} tickLine={false} />
+                      <YAxis tick={axisTick} tickFormatter={(v) => (v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : v >= 1000 ? `₹${(v / 1000).toFixed(0)}k` : `₹${v}`)} axisLine={false} tickLine={false} />
                       <Tooltip formatter={(v) => [formatINR(v), "Spent"]} contentStyle={tooltipStyle} />
                       <Line
                         type="monotone" dataKey="total" stroke="#06B6D4" strokeWidth={2.5}
@@ -911,7 +911,7 @@ export default function Analytics() {
                     <LineChart data={incomeChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
                       <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
-                      <YAxis tick={axisTick} tickFormatter={(v) => `₹${v}`} axisLine={false} tickLine={false} />
+                      <YAxis tick={axisTick} tickFormatter={(v) => (v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : v >= 1000 ? `₹${(v / 1000).toFixed(0)}k` : `₹${v}`)} axisLine={false} tickLine={false} />
                       <Tooltip formatter={(v) => [formatINR(v), "Income"]} contentStyle={tooltipStyle} />
                       <Line
                         type="monotone" dataKey="total" stroke="#10B981" strokeWidth={2.5}

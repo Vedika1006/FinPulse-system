@@ -68,7 +68,7 @@ const WeeklyReport = ({
                 <CartesianGrid stroke={chartGrid} strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="day" tick={chartAxisTick} axisLine={false} tickLine={false} />
                 <YAxis tick={chartAxisTick} axisLine={false} tickLine={false}
-                  tickFormatter={(v) => `₹${Number(v || 0).toFixed(0)}`} />
+                  tickFormatter={(v) => `₹${Number(v || 0).toLocaleString("en-IN")}`} />
                 <Tooltip contentStyle={chartTooltipStyle} formatter={(v) => [formatCurrency(v), "Spent"]} labelFormatter={(l) => `Day: ${l}`} />
                 <Bar dataKey="spent" name="Spent" radius={[6, 6, 0, 0]} maxBarSize={56} isAnimationActive animationDuration={700}>
                   {weeklyBars.map((entry, idx) => (
@@ -79,7 +79,7 @@ const WeeklyReport = ({
                     />
                   ))}
                   <LabelList dataKey="spent" position="top"
-                    formatter={(v) => (v ? `₹${Number(v).toFixed(0)}` : "")}
+                    formatter={(v) => (v ? `₹${Number(v).toLocaleString("en-IN")}` : "")}
                     style={{ fontSize: 10, fill: isDark ? "#94A3B8" : "#6B7280", fontWeight: 500 }}
                   />
                 </Bar>

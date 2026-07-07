@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useToast } from "../components/ToastProvider";
 import { clearAuthToken } from "../utils/auth";
@@ -191,6 +191,26 @@ const ToggleSwitch = ({ checked, onChange }) => (
   </button>
 );
 
+/* ── Preferences persistence (localStorage — no backend table for this) ── */
+const PREFS_KEY = "finpulse_user_preferences";
+const DEFAULT_PREFS = {
+  emailAlerts: true,
+  weeklyReport: true,
+  budgetAlerts: false,
+  weekStart: "Monday",
+  defaultCategory: "Food",
+};
+
+function loadPrefs() {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 /* ── Main Component ────────────────────────────────────────────────────── */
 export default function Settings() {
   const { theme, setTheme, currency, setCurrency } = useTheme();
@@ -210,14 +230,18 @@ export default function Settings() {
     email: "",
   });
 
-  const [prefs, setPrefs] = useState({
-    emailAlerts: true,
-    weeklyReport: true,
-    budgetAlerts: false,
-    currency: "INR",
-    weekStart: "Monday",
-    defaultCategory: "Food",
-  });
+  const [prefs, setPrefs] = useState(() => ({ ...DEFAULT_PREFS, ...(loadPrefs() || {}) }));
+  const isFirstPrefsRender = useRef(true);
+
+  // Persist on every change (skip the initial mount — that's a load, not a save).
+  useEffect(() => {
+    if (isFirstPrefsRender.current) {
+      isFirstPrefsRender.current = false;
+      return;
+    }
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    showToast("Preferences saved", "success");
+  }, [prefs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const fetchUser = async () => {

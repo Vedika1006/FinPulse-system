@@ -86,7 +86,7 @@ const MonthlyTrend = ({
               <CartesianGrid stroke={chartGrid} strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="label" tick={chartAxisTick} axisLine={false} tickLine={false} />
               <YAxis tick={chartAxisTick} axisLine={false} tickLine={false}
-                tickFormatter={(v) => `₹${Number(v || 0).toFixed(0)}`} />
+                tickFormatter={(v) => `₹${Number(v || 0).toLocaleString("en-IN")}`} />
               <Tooltip content={<TrendTooltip />} />
               <Legend wrapperStyle={legendStyle} />
 
@@ -104,7 +104,7 @@ const MonthlyTrend = ({
                   shape={(props) => <Rectangle {...props} fillOpacity={hoveredMonthLabel && props?.payload?.label === hoveredMonthLabel ? 1 : 0.85} />}
                 >
                   <LabelList dataKey="income" position="top"
-                    formatter={(v) => (v ? `₹${Number(v).toFixed(0)}` : "")}
+                    formatter={(v) => (v ? `₹${Number(v).toLocaleString("en-IN")}` : "")}
                     style={{ fontSize: 10, fill: isDark ? "#94A3B8" : "#6B7280", fontWeight: 500 }}
                   />
                 </Bar>
@@ -123,7 +123,7 @@ const MonthlyTrend = ({
                 shape={(props) => <Rectangle {...props} fillOpacity={hoveredMonthLabel && props?.payload?.label === hoveredMonthLabel ? 1 : 0.85} />}
               >
                 <LabelList dataKey="expense" position="top"
-                  formatter={(v) => (v ? `₹${Number(v).toFixed(0)}` : "")}
+                  formatter={(v) => (v ? `₹${Number(v).toLocaleString("en-IN")}` : "")}
                   style={{ fontSize: 10, fill: isDark ? "#94A3B8" : "#6B7280", fontWeight: 500 }}
                 />
               </Bar>

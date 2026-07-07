@@ -528,7 +528,7 @@ export default function LandingPage() {
             <span className="text-sm text-gray-500 dark:text-gray-400">Built with ML for India</span>
           </div>
           <a
-            href="https://github.com"
+            href="https://github.com/Vedika1006/FinPulse-system"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-sm text-gray-400 transition hover:text-gray-900 dark:hover:text-white"

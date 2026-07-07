@@ -33,7 +33,10 @@ def process_due_recurring(db: Session, user_id: Optional[int] = None) -> int:
     the most recent one), advancing next_due_date through each cycle.
     Returns the number of expenses auto-created.
     """
-    query = db.query(models.Recurring).filter(models.Recurring.is_active == True)  # noqa: E712
+    query = db.query(models.Recurring).filter(
+        models.Recurring.is_active == True,  # noqa: E712
+        models.Recurring.is_paused == False,  # noqa: E712
+    )
     if user_id is not None:
         query = query.filter(models.Recurring.user_id == user_id)
 

@@ -51,6 +51,13 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }) {
   const switchMode = (next) => {
     setError("");
     setSuccessMsg("");
+    // Keep email — typing it once and switching modes to register/login
+    // instead is a common flow, no reason to make them retype it. Password,
+    // name, and the recovery token are mode-specific and should not leak in.
+    setPassword("");
+    setName("");
+    setToken("");
+    setShowPassword(false);
     setMode(next);
   };
 
@@ -58,6 +65,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }) {
     e.preventDefault();
     setError("");
     setSuccessMsg("");
+
+    if ((mode === "register" || mode === "reset") && password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
     setLoading(true);
     try {
       if (mode === "register") {
@@ -251,6 +264,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }) {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  {(mode === "register" || mode === "reset") && (
+                    <p className="mt-1.5 text-xs text-gray-400 dark:text-app-muted">Minimum 8 characters</p>
+                  )}
                 </div>
               )}
 

@@ -5,6 +5,27 @@ import {
 } from "recharts";
 import API from "../api/axios";
 
+// Tailwind's JIT scanner can't see dynamically-built class names like
+// `bg-${color}-50` — every variant used must appear as a literal string
+// somewhere in the source, so this lookup spells each one out in full.
+const SUMMARY_COLOR_CLASSES = {
+  indigo: {
+    bg: "bg-indigo-50 dark:bg-indigo-900/20",
+    label: "text-indigo-500 dark:text-indigo-400",
+    value: "text-indigo-700 dark:text-indigo-300",
+  },
+  emerald: {
+    bg: "bg-emerald-50 dark:bg-emerald-900/20",
+    label: "text-emerald-500 dark:text-emerald-400",
+    value: "text-emerald-700 dark:text-emerald-300",
+  },
+  amber: {
+    bg: "bg-amber-50 dark:bg-amber-900/20",
+    label: "text-amber-500 dark:text-amber-400",
+    value: "text-amber-700 dark:text-amber-300",
+  },
+};
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   const filtered = payload.filter(entry => entry.dataKey !== "band" && entry.name !== "Confidence Band");
@@ -138,14 +159,17 @@ export default function ForecastChart() {
             { label: `Next ${view}d Total`, value: forecastList.reduce((s, f) => s + f.yhat, 0), color: "indigo" },
             { label: "Avg / Day",           value: forecastList.reduce((s, f) => s + f.yhat, 0) / forecastList.length, color: "emerald" },
             { label: "Worst Case",          value: forecastList.reduce((s, f) => s + f.yhat_upper, 0), color: "amber" },
-          ].map(({ label, value, color }) => (
-            <div key={label} className={`flex-1 min-w-[110px] rounded-xl bg-${color}-50 p-3 text-center dark:bg-${color}-900/20`}>
-              <p className={`text-xs font-medium text-${color}-500 dark:text-${color}-400`}>{label}</p>
-              <p className={`mt-0.5 text-lg font-bold text-${color}-700 dark:text-${color}-300`}>
-                ₹{value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-              </p>
-            </div>
-          ))}
+          ].map(({ label, value, color }) => {
+            const cls = SUMMARY_COLOR_CLASSES[color];
+            return (
+              <div key={label} className={`flex-1 min-w-[110px] rounded-xl ${cls.bg} p-3 text-center`}>
+                <p className={`text-xs font-medium ${cls.label}`}>{label}</p>
+                <p className={`mt-0.5 text-lg font-bold ${cls.value}`}>
+                  ₹{value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                </p>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

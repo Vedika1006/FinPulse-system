@@ -133,6 +133,7 @@ class Recurring(Base):
     frequency = Column(String, nullable=False)  # "weekly" | "monthly" | "quarterly" | "yearly"
     next_due_date = Column(Date, nullable=False, index=True)
     is_active = Column(Boolean, default=True, nullable=False, server_default="1")
+    is_paused = Column(Boolean, default=False, nullable=False, server_default="0")
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     user = relationship("User")

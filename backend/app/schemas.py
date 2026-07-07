@@ -6,10 +6,21 @@ from pydantic import BaseModel, EmailStr, ConfigDict, field_validator, model_val
 RECURRING_FREQUENCIES = {"weekly", "monthly", "quarterly", "yearly"}
 
 
+def _validate_password_length(value: str) -> str:
+    if not value or len(value) < 8:
+        raise ValueError("Password must be at least 8 characters.")
+    return value
+
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
     name: Optional[str] = None
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        return _validate_password_length(value)
 
 
 class UserResponse(BaseModel):
@@ -37,10 +48,20 @@ class PasswordChange(BaseModel):
     current_password: str
     new_password: str
 
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        return _validate_password_length(value)
+
 
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        return _validate_password_length(value)
 
 
 class Token(BaseModel):
@@ -409,6 +430,7 @@ class RecurringUpdate(BaseModel):
     frequency: Optional[str] = None
     next_due_date: Optional[date] = None
     is_active: Optional[bool] = None
+    is_paused: Optional[bool] = None
 
     @field_validator("description")
     @classmethod
@@ -458,6 +480,7 @@ class RecurringResponse(BaseModel):
     frequency: str
     next_due_date: date
     is_active: bool
+    is_paused: bool = False
     created_at: datetime
 
 

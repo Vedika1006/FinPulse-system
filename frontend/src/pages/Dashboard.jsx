@@ -141,7 +141,7 @@ const Dashboard = () => {
     if ((memory?.meta?.month_total_budget || 0) > 0 && (memory?.meta?.month_overspend || 0) > 0) {
       a.push({
         tone: "red",
-        text: `Budget almost exceeded (over by ${currencySymbol}${Number(memory.meta.month_overspend).toFixed(0)})`,
+        text: `Budget almost exceeded (over by ${currencySymbol}${Number(memory.meta.month_overspend).toLocaleString("en-IN")})`,
       });
     }
     return a.length
@@ -220,23 +220,6 @@ const Dashboard = () => {
     const start = _startOfWeekMonday(new Date());
     const end   = new Date(start); end.setDate(end.getDate() + 7);
 
-    // [DEBUG] Log raw data before any bucketing so we can see whether e.date is
-    // populated with real transaction dates or null (falling back to created_at).
-    if (rows.length > 0) {
-      const sample = rows.slice(0, 5).map((e) => ({
-        date:       e.date ?? null,
-        created_at: e.created_at ? e.created_at.slice(0, 10) : null,
-        resolved:   e.date
-          ? new Date(e.date).toLocaleDateString("en-IN")
-          : `FALLBACK→${e.created_at ? e.created_at.slice(0, 10) : "null"}`,
-        amount: e.amount,
-      }));
-      console.log(
-        `[WeeklyBars] window ${start.toLocaleDateString("en-IN")} – ${end.toLocaleDateString("en-IN")} | total rows: ${rows.length}`
-      );
-      console.log("[WeeklyBars] first 5 expense date fields:", sample);
-    }
-
     const days   = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const totals = new Array(7).fill(0);
 
@@ -249,12 +232,6 @@ const Dashboard = () => {
       const idx = js === 0 ? 6 : js - 1;
       totals[idx] += Number(e?.amount || 0);
     }
-
-    const weekTotal = totals.reduce((a, b) => a + b, 0);
-    console.log(
-      `[WeeklyBars] in-week total ₹${weekTotal.toFixed(0)} | `,
-      days.map((d, i) => `${d}:₹${totals[i].toFixed(0)}`).join("  ")
-    );
 
     const avg           = totals.reduce((a, b) => a + b, 0) / 7;
     const currentJsDay  = new Date().getDay();
@@ -286,7 +263,6 @@ const Dashboard = () => {
       })
       .reduce((s, e) => s + Number(e.amount || 0), 0);
     if (monthTotal === 0) return 0;
-    console.log(`[Projection] This month (by tx date): ₹${monthTotal.toFixed(0)}, Days elapsed: ${daysElapsed}/${daysInMonth}`);
     const projection = Math.round((monthTotal / daysElapsed) * daysInMonth);
     // Projection can never be less than what's already been spent
     return Math.max(projection, Math.round(monthTotal));
@@ -297,7 +273,7 @@ const Dashboard = () => {
     if (weekly.prevTotal > 0 && weekly.pct >= 30)
       a.push(`You spent ${weekly.pct.toFixed(0)}% more than last week`);
     if ((memory?.meta?.month_total_budget || 0) > 0 && (memory?.meta?.month_overspend || 0) > 0)
-      a.push(`Budget almost exceeded (over by ₹${Number(memory.meta.month_overspend).toFixed(0)})`);
+      a.push(`Budget almost exceeded (over by ₹${Number(memory.meta.month_overspend).toLocaleString("en-IN")})`);
     return a.slice(0, 2);
   }, [weekly, memory]);
 

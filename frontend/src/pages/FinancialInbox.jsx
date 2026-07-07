@@ -15,7 +15,7 @@ const fadeUp = (delay = 0) => ({
 });
 
 // ── Constants ───────────────────────────────────────────────────────────────
-const TABS = ["All", "Needs Action", "Bills", "Savings", "Risk", "AI Advice"];
+const TABS = ["All", "Needs Action", "Budget Alerts", "Savings", "Risk", "AI Advice"];
 const DISMISSED_KEY = "finpulse_dismissed_inbox";
 
 function loadDismissed() {
@@ -60,7 +60,7 @@ function toDateLabel(dateStr) {
 function matchesTab(type, tab) {
   if (tab === "All")          return true;
   if (tab === "Needs Action") return type === "budget" || type === "anomaly" || type === "risk";
-  if (tab === "Bills")        return type === "budget";
+  if (tab === "Budget Alerts") return type === "budget";
   if (tab === "Savings")      return type === "savings";
   if (tab === "Risk")         return type === "anomaly" || type === "risk";
   if (tab === "AI Advice")    return type === "ai";

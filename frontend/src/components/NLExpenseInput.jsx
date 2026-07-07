@@ -62,7 +62,7 @@ const NLExpenseInput = ({ onExpenseAdded }) => {
         description: parsedData.description,
         date:        parsedData.date ? new Date(parsedData.date).toISOString() : null,
       });
-      showToast(`Added: ${parsedData.description} (₹${parsedData.amount})`, "success");
+      showToast(`Added: ${parsedData.description} (₹${Number(parsedData.amount).toLocaleString("en-IN")})`, "success");
       setText("");
       if (onExpenseAdded) onExpenseAdded();
     } catch (err) {

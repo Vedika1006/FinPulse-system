@@ -206,17 +206,29 @@ export default function Subscriptions() {
     [refetchTracked]
   );
 
-  // Both "Pause" and "Cancel" soft-delete the item (is_active=false) — the
-  // data model has no separate paused state — so they share one handler.
-  const handleDeactivateTracked = useCallback(
-    async (id, method) => {
+  // Pause: is_paused=true, is_active stays true — the item stays in the
+  // tracked list and can be resumed, but the recurring service skips it.
+  const handlePauseToggle = useCallback(
+    async (id, paused) => {
       setBusyTrackedId(id);
       try {
-        if (method === "put") {
-          await API.put(`/recurring/${id}`, { is_active: false });
-        } else {
-          await API.delete(`/recurring/${id}`);
-        }
+        await API.put(`/recurring/${id}`, { is_paused: paused });
+        await refetchTracked();
+      } catch {
+        // no-op — item stays in the list so the user can retry
+      } finally {
+        setBusyTrackedId(null);
+      }
+    },
+    [refetchTracked]
+  );
+
+  // Cancel: is_active=false (permanent) — the item disappears from the list.
+  const handleCancelTracked = useCallback(
+    async (id) => {
+      setBusyTrackedId(id);
+      try {
+        await API.delete(`/recurring/${id}`);
         await refetchTracked();
       } catch {
         // no-op — item stays in the list so the user can retry
@@ -315,12 +327,21 @@ export default function Subscriptions() {
             {tracked.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between gap-3 bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 border-l-4 border-l-blue-300 rounded-xl p-3"
+                className={`flex items-center justify-between gap-3 bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 border-l-4 rounded-xl p-3 ${
+                  item.is_paused ? "border-l-amber-300 opacity-60" : "border-l-blue-300"
+                }`}
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                    {item.description}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {item.description}
+                    </p>
+                    {item.is_paused && (
+                      <span className="inline-flex flex-shrink-0 items-center rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                        Paused
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500 dark:text-app-muted capitalize">
                     ₹{Number(item.amount).toLocaleString("en-IN")} · {item.frequency} · {item.category}
                   </p>
@@ -334,18 +355,29 @@ export default function Subscriptions() {
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {item.is_paused ? (
+                    <button
+                      type="button"
+                      disabled={busyTrackedId === item.id}
+                      onClick={() => handlePauseToggle(item.id, false)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/40 text-emerald-600 dark:text-emerald-400 text-xs px-2.5 py-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" /> Resume
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={busyTrackedId === item.id}
+                      onClick={() => handlePauseToggle(item.id, true)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-app-muted text-xs px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                    >
+                      <Pause className="w-3.5 h-3.5" /> Pause
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={busyTrackedId === item.id}
-                    onClick={() => handleDeactivateTracked(item.id, "put")}
-                    className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-app-muted text-xs px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
-                  >
-                    <Pause className="w-3.5 h-3.5" /> Pause
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busyTrackedId === item.id}
-                    onClick={() => handleDeactivateTracked(item.id, "delete")}
+                    onClick={() => handleCancelTracked(item.id)}
                     className="inline-flex items-center gap-1 rounded-lg border border-red-400/40 text-red-400 text-xs px-2.5 py-1.5 hover:bg-red-400/10 transition-colors disabled:opacity-50"
                   >
                     <XCircle className="w-3.5 h-3.5" /> Cancel

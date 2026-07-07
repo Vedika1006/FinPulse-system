@@ -188,6 +188,21 @@ def _ensure_schema() -> None:
                         conn.execute(text("ALTER TABLE budgets ADD COLUMN rollover_enabled BOOLEAN DEFAULT FALSE NOT NULL"))
             except Exception:
                 pass
+
+            # Recurring: add is_paused column
+            try:
+                if str(engine.url).startswith("sqlite"):
+                    rec_cols = [r[1] for r in conn.execute(text("PRAGMA table_info(recurring)")).fetchall()]
+                    if "is_paused" not in rec_cols:
+                        conn.execute(text("ALTER TABLE recurring ADD COLUMN is_paused BOOLEAN DEFAULT 0 NOT NULL"))
+                else:
+                    exists_paused = conn.execute(
+                        text("SELECT 1 FROM information_schema.columns WHERE table_name='recurring' AND column_name='is_paused' LIMIT 1")
+                    ).first()
+                    if not exists_paused:
+                        conn.execute(text("ALTER TABLE recurring ADD COLUMN is_paused BOOLEAN DEFAULT FALSE NOT NULL"))
+            except Exception:
+                pass
     except Exception:
         pass
 
