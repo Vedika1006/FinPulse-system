@@ -350,7 +350,7 @@ export default function LandingPage() {
                 FP
               </div>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                Built by Vedika Pardeshi · SPIT Mumbai
+                Vedika Pardeshi
               </span>
             </div>
 
@@ -365,8 +365,6 @@ export default function LandingPage() {
               </svg>
               GitHub
             </a>
-
-            <span className="text-sm text-gray-500 dark:text-gray-400">Made with ☕ and Claude Code</span>
           </div>
           <p className="mt-4 text-center text-xs text-gray-400 dark:text-gray-600">
             © {new Date().getFullYear()} FinPulse. Your data stays yours — 256-bit encryption, no third-party sharing.
