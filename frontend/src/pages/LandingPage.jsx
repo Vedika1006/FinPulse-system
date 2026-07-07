@@ -118,9 +118,11 @@ export default function LandingPage() {
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-cyan-500 text-[10px] font-bold text-[#06080F]">
-              FP
-            </div>
+            <img
+              src="/logo.png"
+              alt="FinPulse"
+              className="h-8 w-8 flex-shrink-0 rounded-lg object-contain ring-1 ring-gray-200 dark:ring-0"
+            />
             <div>
               <p className="text-sm font-semibold leading-none text-gray-900 dark:text-white">FinPulse</p>
               <p className="text-[8px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
@@ -345,9 +347,11 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-6 w-6 items-center justify-center rounded bg-cyan-500 text-[8px] font-bold text-[#06080F]">
-                FP
-              </div>
+              <img
+                src="/logo.png"
+                alt="FinPulse"
+                className="h-6 w-6 rounded object-contain ring-1 ring-gray-200 dark:ring-0"
+              />
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 Vedika Pardeshi
               </span>

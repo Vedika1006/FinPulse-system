@@ -108,9 +108,7 @@ const Login = () => {
 
         {/* Logo */}
         <div className="mb-10 flex items-center gap-2.5">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-cyan-500 text-[11px] font-semibold tracking-tight text-[#06080F]">
-            FP
-          </div>
+          <img src="/logo.png" alt="FinPulse" className="h-9 w-9 flex-shrink-0 rounded-xl object-contain" />
           <span className="text-lg font-semibold tracking-tight text-white">FinPulse</span>
         </div>
 
@@ -165,9 +163,11 @@ const Login = () => {
 
           {/* Mobile logo (hidden on desktop) */}
           <div className="mb-8 flex items-center gap-2 lg:hidden">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500 text-xs font-semibold text-[#06080F]">
-              FP
-            </div>
+            <img
+              src="/logo.png"
+              alt="FinPulse"
+              className="h-8 w-8 rounded-lg object-contain ring-1 ring-gray-200 dark:ring-0"
+            />
             <span className="text-sm font-semibold text-gray-900 dark:text-white">FinPulse</span>
           </div>
 

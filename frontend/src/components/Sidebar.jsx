@@ -93,9 +93,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     >
       {/* ── Logo ── */}
       <div className="flex items-center gap-2.5 border-b border-gray-200 px-5 py-5 dark:border-white/[0.06]">
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-cyan-500 text-[11px] font-semibold tracking-tight text-[#06080F]">
-          FP
-        </div>
+        <img
+          src="/logo.png"
+          alt="FinPulse"
+          className="h-8 w-8 flex-shrink-0 rounded-lg object-contain ring-1 ring-gray-200 dark:ring-0"
+        />
         <div>
           <h1 className="text-sm font-semibold leading-none tracking-tight text-gray-900 dark:text-white">
             FinPulse
