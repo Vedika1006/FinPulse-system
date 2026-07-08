@@ -28,12 +28,16 @@ def upsert_income(
             user_id=user_id,
             month=payload.month,
             amount=float(payload.amount),
+            description=payload.description,
+            date=payload.date,
             is_recurring=payload.is_recurring,
             recurring_frequency=payload.recurring_frequency if payload.is_recurring else None,
         )
         db.add(row)
     else:
         row.amount = float(payload.amount)
+        row.description = payload.description
+        row.date = payload.date
         row.is_recurring = payload.is_recurring
         row.recurring_frequency = payload.recurring_frequency if payload.is_recurring else None
         # This is a deliberate user edit — it's no longer just an unconfirmed auto-fill.
@@ -78,6 +82,8 @@ def upsert_income(
         "id": row.id,
         "month": row.month,
         "amount": row.amount,
+        "description": row.description,
+        "date": row.date,
         "is_recurring": row.is_recurring,
         "recurring_frequency": row.recurring_frequency,
         "auto_filled": row.auto_filled,
@@ -116,3 +122,20 @@ def get_income_for_month(
     if not row:
         raise NotFoundException("Income not found for this month")
     return row
+
+
+@router.delete("/{income_id}")
+def delete_income(
+    income_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user),
+):
+    row = (
+        db.query(models.Income)
+        .filter(models.Income.id == income_id, models.Income.user_id == user_id)
+        .first()
+    )
+    if not row:
+        raise NotFoundException("Income record not found")
+    db.delete(row)
+    db.commit()

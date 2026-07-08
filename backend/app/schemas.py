@@ -178,6 +178,8 @@ RECURRING_INCOME_FREQUENCIES = {"monthly", "weekly", "biweekly"}
 class IncomeCreate(BaseModel):
     month: str  # YYYY-MM
     amount: float
+    description: Optional[str] = None
+    date: Optional[datetime] = None
     is_recurring: bool = False
     recurring_frequency: Optional[str] = None
 
@@ -214,6 +216,8 @@ class IncomeResponse(BaseModel):
     id: int
     month: str
     amount: float
+    description: Optional[str] = None
+    date: Optional[datetime] = None
     is_recurring: bool = False
     recurring_frequency: Optional[str] = None
     auto_filled: bool = False
@@ -228,6 +232,8 @@ class IncomeWithAutoSavesResponse(BaseModel):
     id: int
     month: str
     amount: float
+    description: Optional[str] = None
+    date: Optional[datetime] = None
     is_recurring: bool = False
     recurring_frequency: Optional[str] = None
     auto_filled: bool = False

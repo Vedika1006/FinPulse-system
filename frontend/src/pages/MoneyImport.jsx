@@ -1,14 +1,269 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Landmark, ChevronLeft, Upload, CheckCircle } from "lucide-react";
+import { Landmark, ChevronLeft, Upload, CheckCircle, Wallet, Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
 import { previewCSVImport, confirmCSVImport } from "../api/imports";
+import { listIncome, saveIncome, deleteIncome } from "../api/income";
+import { Modal } from "../components/ui/Modal";
+import { useToast } from "../components/ToastProvider";
+import { currentMonthParam } from "../utils/month";
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.3, delay },
 });
+
+const fieldClass =
+  "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-app-accent focus:ring-2 focus:ring-app-accent/20 dark:border-white/[0.08] dark:bg-app-surface dark:text-white dark:placeholder:text-app-muted dark:focus:border-app-accent/40";
+const btnPrimaryCls =
+  "rounded-xl bg-app-accent px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-app-accent/90 disabled:opacity-50 disabled:cursor-not-allowed";
+const btnSecondaryCls =
+  "rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-50 dark:border-white/[0.08] dark:bg-transparent dark:text-app-subtle dark:hover:bg-white/5 dark:hover:text-white";
+
+function todayISODate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// ── "Your Income" section — manual income entry, separate from the CSV
+// import flow below it. Income is one record per month (upsert keyed by
+// month on the backend), so this list always shows 0 or 1 card for the
+// current month — "Edit" re-saves the same month's record.
+function IncomeSection() {
+  const { showToast } = useToast();
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const [date, setDate] = useState(todayISODate());
+  const [recurring, setRecurring] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const currentMonth = currentMonthParam();
+  const currentMonthLabel = new Date().toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    try {
+      const all = await listIncome();
+      setRecords((Array.isArray(all) ? all : []).filter((r) => r.month === currentMonth));
+    } catch {
+      setRecords([]);
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMonth]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  const openAdd = () => {
+    setEditing(null);
+    setAmount("");
+    setDescription("");
+    setDate(todayISODate());
+    setRecurring(false);
+    setFormOpen(true);
+  };
+
+  const openEdit = (record) => {
+    setEditing(record);
+    setAmount(String(record.amount ?? ""));
+    setDescription(record.description || "");
+    setDate(record.date ? record.date.slice(0, 10) : todayISODate());
+    setRecurring(Boolean(record.is_recurring));
+    setFormOpen(true);
+  };
+
+  const handleSave = async () => {
+    const amt = Number(amount);
+    if (!amt || amt <= 0 || !description.trim() || !date) return;
+    setSaving(true);
+    try {
+      await saveIncome({
+        month: date.slice(0, 7),
+        amount: amt,
+        description: description.trim(),
+        date: new Date(date).toISOString(),
+        is_recurring: recurring,
+        recurring_frequency: recurring ? "monthly" : null,
+      });
+      showToast(editing ? "Income updated" : "Income added", "success");
+      setFormOpen(false);
+      await refetch();
+    } catch {
+      showToast("Could not save income. Please try again.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (record) => {
+    const ok = window.confirm(
+      `Delete this income record (₹${Number(record.amount).toLocaleString("en-IN")})?`
+    );
+    if (!ok) return;
+    try {
+      await deleteIncome(record.id);
+      showToast("Income deleted", "success");
+      await refetch();
+    } catch {
+      showToast("Could not delete income", "error");
+    }
+  };
+
+  return (
+    <div className="mb-8">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Wallet className="h-4 w-4 text-app-accent" aria-hidden />
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Your Income</h3>
+        </div>
+        <button type="button" onClick={openAdd} className={`${btnPrimaryCls} inline-flex items-center gap-1.5`}>
+          <Plus className="h-4 w-4" /> Add Income
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="h-16 animate-pulse rounded-xl bg-gray-100 dark:bg-white/5" />
+      ) : records.length === 0 ? (
+        <div className="rounded-xl bg-gray-50 p-4 dark:bg-white/5">
+          <p className="text-sm text-app-muted">
+            No income recorded for {currentMonthLabel}. Add your salary to get accurate savings and
+            safe-to-spend calculations.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {records.map((r, i) => (
+            <motion.div
+              key={r.id}
+              {...fadeUp(i * 0.05)}
+              className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-3 dark:border-white/5 dark:bg-app-card"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-500/10">
+                  <Wallet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                    {r.description || "Income"}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-app-muted">
+                    {r.date
+                      ? new Date(r.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                      : currentMonthLabel}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-shrink-0 items-center gap-2">
+                {r.is_recurring && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-app-accent/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-app-accent">
+                    <RefreshCw className="h-2.5 w-2.5" aria-hidden /> Recurring
+                  </span>
+                )}
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  ₹{Number(r.amount).toLocaleString("en-IN")}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => openEdit(r)}
+                  className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-900 dark:text-app-muted dark:hover:bg-white/5 dark:hover:text-white"
+                  aria-label="Edit income"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(r)}
+                  className="rounded-lg p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-500 dark:text-app-muted dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                  aria-label="Delete income"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      <Modal
+        open={formOpen}
+        onClose={() => !saving && setFormOpen(false)}
+        title={editing ? "Edit Income" : "Add Income"}
+        footer={
+          <>
+            <button type="button" onClick={() => setFormOpen(false)} disabled={saving} className={btnSecondaryCls}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || !amount || Number(amount) <= 0 || !description.trim() || !date}
+              className={btnPrimaryCls}
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-app-subtle">Amount</label>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-app-muted">
+                ₹
+              </span>
+              <input
+                type="number"
+                min="0"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="e.g. 72,000"
+                className={`${fieldClass} pl-7`}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-app-subtle">
+              Source / Description
+            </label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Monthly Salary - TCS"
+              className={fieldClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-app-subtle">Date</label>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={fieldClass} />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-app-subtle">
+            <input
+              type="checkbox"
+              checked={recurring}
+              onChange={(e) => setRecurring(e.target.checked)}
+              className="h-4 w-4 accent-app-accent"
+            />
+            This repeats every month
+          </label>
+          {recurring && (
+            <p className="text-xs text-app-muted">
+              This income will automatically appear in future months. You can edit any month's amount
+              individually.
+            </p>
+          )}
+        </div>
+      </Modal>
+    </div>
+  );
+}
 
 const BANKS = [
   { key: "icici", label: "ICICI Bank",  color: "text-orange-500" },
@@ -162,13 +417,24 @@ export default function MoneyImport() {
     <div className="mx-auto max-w-2xl p-4">
       {/* Page header — always visible */}
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Bring your money history into FinPulse
-        </h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Income & Import</h2>
         <p className="text-sm text-app-muted mt-1">
-          Import transactions from your bank statement and we&apos;ll organise it automatically.
+          Track what you earn and bring your spending history into FinPulse.
         </p>
       </div>
+
+      <IncomeSection />
+
+      <div className="mb-1 flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Upload className="h-4 w-4 text-app-accent" aria-hidden />
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Import Bank Statement</h3>
+        </div>
+        <div className="h-px flex-1 bg-gray-100 dark:bg-white/5" />
+      </div>
+      <p className="mb-6 text-sm text-app-muted">
+        Import transactions from your bank statement and we&apos;ll organise it automatically.
+      </p>
 
       <AnimatePresence mode="wait">
 

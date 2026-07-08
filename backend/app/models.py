@@ -82,6 +82,8 @@ class Income(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     month = Column(String, nullable=False, index=True)  # YYYY-MM
     amount = Column(Float, nullable=False)
+    description = Column(String, nullable=True)  # e.g. "Salary - TCS"
+    date = Column(DateTime, nullable=True)  # specific day within `month`, for display
     is_recurring = Column(Boolean, default=False, nullable=False, server_default="0")
     recurring_frequency = Column(String, nullable=True)  # "monthly" | "weekly" | "biweekly"
     auto_filled = Column(Boolean, default=False, nullable=False, server_default="0")  # created by process_recurring_income, not the user

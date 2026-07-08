@@ -10,7 +10,7 @@ const ROUTE_TITLES = [
   { match: /^\/budgets\/?$/, title: "Budgets", subtitle: "Plans vs actuals" },
   { match: /^\/analytics\/?$/, title: "Analytics", subtitle: "Trends & health" },
   { match: /^\/settings\/?$/, title: "Settings", subtitle: "Profile & preferences" },
-  { match: /^\/money\/import\/?$/, title: "Income & Import",    subtitle: "Bring your money history in"  },
+  { match: /^\/money\/import\/?$/, title: "Income & Import",    subtitle: "Track earnings & import statements"  },
   { match: /^\/subscriptions\/?$/, title: "Subscriptions",      subtitle: "Recurring payments & control" },
   { match: /^\/inbox\/?$/,         title: "Financial Inbox",  subtitle: "Updates & decisions"         },
   { match: /^\/calendar\/?$/,      title: "Cashflow Calendar", subtitle: "Upcoming bills & income"    },

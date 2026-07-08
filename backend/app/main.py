@@ -240,6 +240,28 @@ def _ensure_schema() -> None:
                         conn.execute(text("ALTER TABLE income ADD COLUMN auto_filled BOOLEAN DEFAULT FALSE NOT NULL"))
             except Exception:
                 pass
+
+            # Income: add description / date columns (manual "Your Income" entry form)
+            try:
+                if str(engine.url).startswith("sqlite"):
+                    inc_cols3 = [r[1] for r in conn.execute(text("PRAGMA table_info(income)")).fetchall()]
+                    if "description" not in inc_cols3:
+                        conn.execute(text("ALTER TABLE income ADD COLUMN description VARCHAR"))
+                    if "date" not in inc_cols3:
+                        conn.execute(text("ALTER TABLE income ADD COLUMN date DATETIME"))
+                else:
+                    exists_desc = conn.execute(
+                        text("SELECT 1 FROM information_schema.columns WHERE table_name='income' AND column_name='description' LIMIT 1")
+                    ).first()
+                    if not exists_desc:
+                        conn.execute(text("ALTER TABLE income ADD COLUMN description VARCHAR"))
+                    exists_date = conn.execute(
+                        text("SELECT 1 FROM information_schema.columns WHERE table_name='income' AND column_name='date' LIMIT 1")
+                    ).first()
+                    if not exists_date:
+                        conn.execute(text("ALTER TABLE income ADD COLUMN date TIMESTAMP"))
+            except Exception:
+                pass
     except Exception:
         pass
 
