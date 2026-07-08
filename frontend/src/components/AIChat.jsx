@@ -24,11 +24,21 @@ export default function AIChat() {
   const sendMessage = async (overrideText) => {
     const text = (typeof overrideText === "string" ? overrideText : input).trim();
     if (!text || sending) return;
+
+    // Session memory: recent turns of this conversation so far, so follow-ups
+    // like "what about last month?" resolve against the prior question. The
+    // welcome greeting (always messages[0]) isn't a real exchange, so it's
+    // excluded; the message being sent now goes in `message`, not history.
+    const history = messages
+      .slice(1)
+      .slice(-10)
+      .map((m) => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text }));
+
     setMessages((prev) => [...prev, { role: "user", text }]);
     setInput("");
     setSending(true);
     try {
-      const res   = await API.post("/ai/chat", { message: text });
+      const res   = await API.post("/ai/chat", { message: text, history });
       const reply = res.data?.reply || "I could not generate a response right now.";
       setMessages((prev) => [...prev, { role: "ai", text: reply }]);
     } catch {

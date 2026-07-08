@@ -342,7 +342,12 @@ export default function FinancialInbox() {
                           <p className="text-xs text-app-muted mt-0.5">{item.description}</p>
                           <div className="flex gap-2 mt-2">
                             <button
-                              onClick={item.primaryAction.onClick}
+                              onClick={() => {
+                                // Acting on a card resolves it — dismiss before navigating away so
+                                // it doesn't reappear unchanged when the user comes back.
+                                dismiss(item.id);
+                                item.primaryAction.onClick();
+                              }}
                               className="text-xs bg-app-accent text-white rounded-lg px-3 py-1.5"
                             >
                               {item.primaryAction.label}

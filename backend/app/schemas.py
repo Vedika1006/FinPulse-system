@@ -290,6 +290,9 @@ class AIChatRequest(BaseModel):
     message: str
     context: Optional[str] = None
     data: Optional[dict[str, Any]] = None
+    # [{"role": "user"|"assistant", "content": "..."}, ...] — recent turns of
+    # this chat session, for follow-up questions like "what about last month?"
+    history: Optional[list[dict[str, Any]]] = None
 
     @field_validator("message")
     @classmethod

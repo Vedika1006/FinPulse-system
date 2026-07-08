@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
+import { Clock } from "lucide-react";
 
 const CELL = 13;
 const GAP = 2;
@@ -138,7 +139,18 @@ export default function SpendingHeatmap({ expenses }) {
     [expenses]
   );
 
-  if (daysWithData < 14 || daysWithSpending < 3) return null;
+  if (daysWithData < 14 || daysWithSpending < 3) {
+    return (
+      <div className="flex items-start gap-2.5 rounded-xl bg-gray-50 p-4 dark:bg-white/5">
+        <Clock className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400 dark:text-app-muted" aria-hidden />
+        <p className="text-sm text-app-muted">
+          The spending heatmap needs at least 14 days of expense history with 3+ days of actual
+          spending. You have {daysWithData} day{daysWithData === 1 ? "" : "s"} tracked so far —
+          keep logging expenses and this will unlock automatically.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <motion.div

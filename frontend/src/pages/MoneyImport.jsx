@@ -58,6 +58,7 @@ export default function MoneyImport() {
   const [uploadError, setUploadError] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [importSummary, setImportSummary] = useState(null);
 
   const setStep = (step) => setCurrentStep(step);
 
@@ -109,6 +110,43 @@ export default function MoneyImport() {
     try {
       const result = await confirmCSVImport(selected, previewData.income_entries || [], false);
       localStorage.removeItem("finpulse_weekly_action");
+
+      // The confirm endpoint only returns counts, not amounts/categories/date
+      // range — compute those client-side from what was actually confirmed,
+      // while previewData is still around.
+      const incomeEntries = previewData.income_entries || [];
+      const totalExpenseAmount = selected.reduce((s, t) => s + Number(t.amount || 0), 0);
+      const totalIncomeAmount = incomeEntries.reduce((s, e) => s + Number(e.amount || 0), 0);
+
+      const allDates = [...selected.map((t) => t.date), ...incomeEntries.map((e) => e.date)]
+        .filter(Boolean)
+        .map((d) => new Date(d))
+        .filter((d) => !isNaN(d));
+      let dateRangeLabel = null;
+      if (allDates.length > 0) {
+        const fmt = (d) => d.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+        const minLabel = fmt(new Date(Math.min(...allDates)));
+        const maxLabel = fmt(new Date(Math.max(...allDates)));
+        dateRangeLabel = minLabel === maxLabel ? minLabel : `${minLabel} — ${maxLabel}`;
+      }
+
+      const categoryTotals = {};
+      for (const t of selected) {
+        const cat = String(t.category || t.suggested_category || "other").toLowerCase();
+        categoryTotals[cat] = (categoryTotals[cat] || 0) + Number(t.amount || 0);
+      }
+      const topCategories = Object.entries(categoryTotals)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4)
+        .map(([category, amount]) => ({ category, amount }));
+
+      setImportSummary({
+        totalExpenseAmount,
+        totalIncomeAmount,
+        dateRangeLabel,
+        topCategories,
+        duplicatesFlagged: previewData.duplicate_count || 0,
+      });
       setImportResult(result);
       setStep("done");
     } catch {
@@ -398,38 +436,95 @@ export default function MoneyImport() {
 
         {/* ── STEP 5: Done ─────────────────────────────────────────────────── */}
         {currentStep === "done" && importResult && (
-          <motion.div
-            key="done"
-            {...fadeUp(0)}
-            className="flex flex-col items-center justify-center py-12 text-center"
-          >
-            <CheckCircle className="w-10 h-10 text-emerald-500 mb-3" />
-            <h3 className="text-base font-medium text-gray-900 dark:text-white mb-1">
-              {importResult.imported_count} transaction
-              {importResult.imported_count !== 1 ? "s" : ""} imported
+          <motion.div key="done" {...fadeUp(0)} className="py-6 text-center">
+            <CheckCircle className="w-10 h-10 text-emerald-500 mb-3 mx-auto" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+              Import Complete ✓
             </h3>
-            <p className="text-sm text-app-muted mb-1">
+            <p className="text-sm text-app-muted mb-5">
               Your expenses and forecasts have been updated.
             </p>
+
+            {/* Primary stats row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left mb-4">
+              <div className="rounded-xl border border-emerald-100 dark:border-emerald-500/15 bg-emerald-50 dark:bg-emerald-900/10 p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  Expenses imported
+                </p>
+                <p className="mt-1 text-xl font-bold font-mono tabular-nums text-gray-900 dark:text-white">
+                  {importResult.imported_count}
+                </p>
+                {importSummary?.totalExpenseAmount > 0 && (
+                  <p className="text-xs text-app-muted mt-0.5">
+                    ₹{importSummary.totalExpenseAmount.toLocaleString("en-IN")} total
+                  </p>
+                )}
+              </div>
+
+              {importSummary?.totalIncomeAmount > 0 && (
+                <div className="rounded-xl border border-gray-100 dark:border-white/5 bg-white dark:bg-app-card p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">
+                    Income detected
+                  </p>
+                  <p className="mt-1 text-xl font-bold font-mono tabular-nums text-gray-900 dark:text-white">
+                    ₹{importSummary.totalIncomeAmount.toLocaleString("en-IN")}
+                  </p>
+                </div>
+              )}
+
+              {importSummary?.dateRangeLabel && (
+                <div className="rounded-xl border border-gray-100 dark:border-white/5 bg-white dark:bg-app-card p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">
+                    Date range
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                    Across {importSummary.dateRangeLabel}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Category breakdown */}
+            {importSummary?.topCategories?.length > 0 && (
+              <p className="text-xs text-app-muted text-left mb-2">
+                Top categories:{" "}
+                {importSummary.topCategories
+                  .map(
+                    (c) =>
+                      `${c.category.charAt(0).toUpperCase()}${c.category.slice(1)} (₹${c.amount.toLocaleString("en-IN")})`
+                  )
+                  .join(", ")}
+              </p>
+            )}
+
+            {/* Duplicates note */}
+            {importSummary?.duplicatesFlagged > 0 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 text-left mb-2">
+                {importSummary.duplicatesFlagged} possible duplicate
+                {importSummary.duplicatesFlagged !== 1 ? "s" : ""} were flagged during review.
+              </p>
+            )}
+
             {importResult.income_imported > 0 && (
-              <p className="text-xs text-app-muted">
+              <p className="text-xs text-app-muted text-left">
                 Income set for {importResult.income_imported} new month
                 {importResult.income_imported !== 1 ? "s" : ""}.
               </p>
             )}
             {importResult.income_merged > 0 && (
-              <p className="text-xs text-app-muted">
+              <p className="text-xs text-app-muted text-left">
                 Income added to {importResult.income_merged} existing month
                 {importResult.income_merged !== 1 ? "s" : ""}.
               </p>
             )}
             {importResult.skipped_count > 0 && (
-              <p className="text-xs text-app-muted mb-4">
+              <p className="text-xs text-app-muted text-left">
                 {importResult.skipped_count} transaction
                 {importResult.skipped_count !== 1 ? "s" : ""} skipped.
               </p>
             )}
-            <div className="flex gap-3 mt-4">
+
+            <div className="flex gap-3 mt-5 justify-center">
               <button
                 onClick={() => {
                   setCurrentStep("select-bank");
@@ -437,17 +532,18 @@ export default function MoneyImport() {
                   setPreviewData(null);
                   setCheckedTxns([]);
                   setImportResult(null);
+                  setImportSummary(null);
                   setUploadError(null);
                 }}
                 className="border border-gray-200 dark:border-white/10 text-gray-700 dark:text-app-muted rounded-lg px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
               >
-                Import another file
+                Import Another
               </button>
               <button
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/expenses")}
                 className="bg-app-accent text-white rounded-lg px-4 py-2 text-sm hover:bg-app-accent/90 transition-colors"
               >
-                Go to Dashboard
+                View Expenses →
               </button>
             </div>
           </motion.div>

@@ -137,6 +137,7 @@ def ai_chat(
             memory=memory,
             rag_context=rag_context,
             knowledge_chunks=knowledge_chunks,
+            history=payload.history,
         )
     }
 

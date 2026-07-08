@@ -11,6 +11,7 @@ const KPICards = ({
   setIncomeModal,
   topOverBudgetCategory,
   navigate,
+  totalMonthlyEMI,
 }) => {
   const currentMonthLabel = new Date().toLocaleDateString("en-IN", { month: "short", year: "numeric" });
 
@@ -67,6 +68,11 @@ const KPICards = ({
         {weekly.topCategory && (
           <p className="mt-1 text-xs text-gray-400 dark:text-app-muted">
             Top: {weekly.topCategory}
+          </p>
+        )}
+        {totalMonthlyEMI > 0 && (
+          <p className="mt-1 text-xs text-app-muted">
+            Excludes {formatCurrency(totalMonthlyEMI)} in EMIs
           </p>
         )}
       </div>

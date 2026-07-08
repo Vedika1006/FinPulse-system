@@ -288,7 +288,7 @@ const Expenses = () => {
           <Sparkles className="w-4 h-4" />
           Smart Add
         </div>
-        <NLExpenseInput onExpenseAdded={refreshAll} />
+        <NLExpenseInput onExpenseAdded={refreshAll} autoFocus={searchParams.get("focus") === "add"} />
       </div>
 
       {/* Anomaly summary banner — only shown when ML has flagged something */}

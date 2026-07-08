@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   PiggyBank,
@@ -17,12 +18,15 @@ import {
   Pencil,
   Trash2,
   ShieldCheck,
+  X,
 } from "lucide-react";
 import API from "../api/axios";
 import { Modal } from "../components/ui/Modal";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ProgressBar } from "../components/ui/ProgressBar";
 import { useToast } from "../components/ToastProvider";
+
+const TAX_TIP_DISMISSED_KEY = "finpulse_tax_tip_dismissed";
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 20 },
@@ -216,8 +220,12 @@ function RegimeCard({ title, result, recommended }) {
 
 export default function Tax() {
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const fyOptions = useMemo(() => fyOptionsList(4), []);
   const [fy, setFy] = useState(fyOptions[0]);
+  const [showTaxTip, setShowTaxTip] = useState(
+    () => localStorage.getItem(TAX_TIP_DISMISSED_KEY) !== "true"
+  );
 
   const [incomeInput, setIncomeInput] = useState("");
   const [income, setIncome] = useState(null);
@@ -436,6 +444,38 @@ export default function Tax() {
               </div>
             )}
           </motion.div>
+
+          {/* Cross-reference hint */}
+          {showTaxTip && (
+            <motion.div
+              {...fadeUp(0.07)}
+              className="mb-4 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20"
+            >
+              <p className="flex-1 text-sm text-blue-700 dark:text-blue-300">
+                💡 Tip: Check your expenses for LIC premiums, ELSS mutual fund SIPs, home loan payments, or
+                children's tuition fees — these may already qualify under Section 80C. Add them here to track
+                your tax savings.{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/expenses")}
+                  className="font-medium text-blue-700 underline hover:no-underline dark:text-blue-300"
+                >
+                  View your expenses →
+                </button>
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem(TAX_TIP_DISMISSED_KEY, "true");
+                  setShowTaxTip(false);
+                }}
+                className="flex-shrink-0 text-blue-400 hover:text-blue-600 dark:text-blue-500 dark:hover:text-blue-300"
+                aria-label="Dismiss tip"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </motion.div>
+          )}
 
           {/* 80C tracker */}
           {c80c && (

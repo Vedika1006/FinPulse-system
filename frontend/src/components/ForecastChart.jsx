@@ -3,6 +3,7 @@ import {
   ComposedChart, Line, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from "recharts";
+import { Clock } from "lucide-react";
 import API from "../api/axios";
 
 // Tailwind's JIT scanner can't see dynamically-built class names like
@@ -56,7 +57,7 @@ export default function ForecastChart() {
 
   if (loading) {
     return (
-      <div className="flex h-48 items-center justify-center text-sm text-gray-400 dark:text-app-muted">
+      <div className="rounded-xl bg-gray-50 p-4 text-sm text-app-muted dark:bg-white/5">
         Loading forecast…
       </div>
     );
@@ -64,8 +65,12 @@ export default function ForecastChart() {
 
   if (error || !data || data.method === "no_data") {
     return (
-      <div className="flex h-48 items-center justify-center text-sm text-gray-400 dark:text-app-muted">
-        {error || "Add more expenses to unlock spending forecasts."}
+      <div className="flex items-start gap-2.5 rounded-xl bg-gray-50 p-4 dark:bg-white/5">
+        <Clock className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400 dark:text-app-muted" aria-hidden />
+        <p className="text-sm text-app-muted">
+          {error ||
+            "The full daily/weekly forecast needs a bit more expense history to find a pattern. Keep tracking and it'll unlock automatically."}
+        </p>
       </div>
     );
   }

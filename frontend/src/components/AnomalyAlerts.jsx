@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AlertOctagon, AlertTriangle, Info, Zap } from "lucide-react";
+import { AlertOctagon, AlertTriangle, Info, Zap, Clock } from "lucide-react";
 import API from "../api/axios";
 
 const SEVERITY_CONFIG = {
@@ -27,12 +27,16 @@ const SEVERITY_CONFIG = {
 };
 
 const AnomalyAlerts = () => {
-  const [anomalies, setAnomalies] = useState([]);
-  const [loading,   setLoading]   = useState(true);
+  const [anomalies,   setAnomalies]   = useState([]);
+  const [insufficient, setInsufficient] = useState(null); // backend's own count-based message, or null
+  const [loading,      setLoading]      = useState(true);
 
   useEffect(() => {
     API.get("/analytics/anomalies")
-      .then((res) => setAnomalies(res.data?.anomalies || []))
+      .then((res) => {
+        setAnomalies(res.data?.anomalies || []);
+        setInsufficient(res.data?.method === "insufficient_data" ? res.data?.message || null : null);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -49,7 +53,18 @@ const AnomalyAlerts = () => {
     );
   }
 
-  if (anomalies.length === 0) return null;
+  if (anomalies.length === 0) {
+    // "Not enough expenses yet" is worth a small note so this doesn't look
+    // broken; "sufficient data but genuinely nothing unusual" isn't — stay
+    // silent rather than clutter the Dashboard with a "nothing to report" card.
+    if (!insufficient) return null;
+    return (
+      <div className="flex items-start gap-2.5 rounded-2xl border border-gray-100 bg-white p-4 dark:border-white/[0.05] dark:bg-app-card">
+        <Clock className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400 dark:text-app-muted" aria-hidden />
+        <p className="text-sm text-app-muted">{insufficient}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-white/[0.05] dark:bg-app-card">

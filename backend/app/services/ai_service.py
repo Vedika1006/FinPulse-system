@@ -480,6 +480,29 @@ def _infer_intent(message: str) -> str:
     return "unknown"
 
 
+def _sanitize_chat_history(history: Optional[list]) -> list[dict]:
+    """
+    Keeps only well-formed {"role": "user"|"assistant", "content": str}
+    entries, drops anything else, and caps at 10 (5 user + 5 assistant
+    turns) regardless of how much the caller sends — keeps token usage
+    bounded no matter what the frontend does.
+    """
+    if not isinstance(history, list):
+        return []
+    cleaned: list[dict] = []
+    for entry in history:
+        if not isinstance(entry, dict):
+            continue
+        role = entry.get("role")
+        content = entry.get("content")
+        if role not in ("user", "assistant"):
+            continue
+        if not isinstance(content, str) or not content.strip():
+            continue
+        cleaned.append({"role": role, "content": content.strip()})
+    return cleaned[-10:]
+
+
 def generate_chat_reply(
     message: str,
     context: Optional[str] = None,
@@ -487,6 +510,7 @@ def generate_chat_reply(
     memory: Optional[Dict[str, Any]] = None,
     rag_context: Optional[str] = None,
     knowledge_chunks: Optional[list[str]] = None,
+    history: Optional[list] = None,
 ) -> str:
     user_message = (message or "").strip()
     if not user_message:
@@ -530,6 +554,7 @@ def generate_chat_reply(
 
     rag_ctx = (rag_context or "").strip()
     knowledge = [c for c in (knowledge_chunks or []) if isinstance(c, str) and c.strip()]
+    sanitized_history = _sanitize_chat_history(history)
 
     for model_name in list(dict.fromkeys([m for m in MODEL_CANDIDATES if m])):
         try:
@@ -563,17 +588,14 @@ def generate_chat_reply(
                     "Do NOT force a single fixed template for every answer. "
                     "Only include information relevant to the user's question."
                 )
-            response = client.chat.completions.create(
-                model=model_name,
-                temperature=0.35,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system,
-                    },
-                    {
-                        "role": "user",
-                        "content": (
+            chat_messages = [{"role": "system", "content": system}]
+            # Recent turns of this session, so follow-ups like "what about
+            # last month?" resolve against the prior question, not in a vacuum.
+            chat_messages.extend(sanitized_history)
+            chat_messages.append(
+                {
+                    "role": "user",
+                    "content": (
                             f"User message: {user_message}\n\n"
                             f"Context (use ONLY this): {ctx or 'N/A'}\n\n"
                             f"Data (use ONLY this JSON): {payload}\n\n"
@@ -601,9 +623,13 @@ def generate_chat_reply(
                             "- Be conversational and clear.\n"
                             "- Keep spacing between blocks.\n"
                             "- Use INR symbol '₹' (not 'Rs').\n"
-                        ),
-                    },
-                ],
+                    ),
+                }
+            )
+            response = client.chat.completions.create(
+                model=model_name,
+                temperature=0.35,
+                messages=chat_messages,
             )
             content = (response.choices[0].message.content or "").strip()
             if content:

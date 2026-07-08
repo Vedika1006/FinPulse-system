@@ -165,6 +165,7 @@ export default function Subscriptions() {
   const [trackedLoading, setTrackedLoading] = useState(true);
   const [confirmingId, setConfirmingId] = useState(null);
   const [busyTrackedId, setBusyTrackedId] = useState(null);
+  const [justTrackedInfo, setJustTrackedInfo] = useState(null); // { id, dueDate }
 
   useEffect(() => {
     API.get("/expenses/")
@@ -197,6 +198,11 @@ export default function Subscriptions() {
           next_due_date: toLocalISODate(dueDate),
         });
         await refetchTracked();
+        // Brief info card confirming what tracking actually does — auto-hides.
+        setJustTrackedInfo({ id: pattern.id, dueDate });
+        setTimeout(() => {
+          setJustTrackedInfo((cur) => (cur?.id === pattern.id ? null : cur));
+        }, 7000);
       } catch {
         // Silently keep the "Track this" button available so the user can retry.
       } finally {
@@ -454,38 +460,57 @@ export default function Subscriptions() {
           <div className="flex flex-col gap-2">
             {items.map((item) => {
               const alreadyTracked = tracked.some((t) => isSameSubscription(item, t));
+              const showTrackedInfo = justTrackedInfo?.id === item.id;
               return (
-                <div
-                  key={item.id}
-                  onClick={() => setSelectedSub(item)}
-                  className="flex items-center justify-between gap-3 bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 rounded-xl p-3 cursor-pointer hover:border-app-accent/30 transition-colors"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{item.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-app-muted">
-                      ₹{item.amount.toLocaleString("en-IN")}/month
-                    </p>
+                <div key={item.id}>
+                  <div
+                    onClick={() => setSelectedSub(item)}
+                    className="flex items-center justify-between gap-3 bg-white dark:bg-app-card border border-gray-100 dark:border-white/5 rounded-xl p-3 cursor-pointer hover:border-app-accent/30 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{item.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-app-muted">
+                        ₹{item.amount.toLocaleString("en-IN")}/month
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-xs text-gray-500 dark:text-app-muted">{getDueLabel(item.nextDue)}</span>
+                      {alreadyTracked ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                          <Check className="w-3 h-3" /> Tracked
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={confirmingId === item.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTrackPattern(item);
+                          }}
+                          className="rounded-lg bg-app-accent text-white text-xs font-medium px-2.5 py-1.5 hover:bg-app-accent/90 transition-colors disabled:opacity-50"
+                        >
+                          {confirmingId === item.id ? "Tracking…" : "Track this"}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-xs text-gray-500 dark:text-app-muted">{getDueLabel(item.nextDue)}</span>
-                    {alreadyTracked ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                        <Check className="w-3 h-3" /> Tracked
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={confirmingId === item.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTrackPattern(item);
-                        }}
-                        className="rounded-lg bg-app-accent text-white text-xs font-medium px-2.5 py-1.5 hover:bg-app-accent/90 transition-colors disabled:opacity-50"
+                  <AnimatePresence>
+                    {showTrackedInfo && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="overflow-hidden"
                       >
-                        {confirmingId === item.id ? "Tracking…" : "Track this"}
-                      </button>
+                        <div className="mt-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                          FinPulse will automatically track this payment each month starting{" "}
+                          {justTrackedInfo.dueDate.toLocaleDateString("en-IN", { month: "short", year: "numeric" })}.
+                          If this payment already exists from a bank statement import, we'll skip creating a duplicate.
+                        </div>
+                      </motion.div>
                     )}
-                  </div>
+                  </AnimatePresence>
                 </div>
               );
             })}

@@ -22,8 +22,20 @@ import {
 } from "recharts";
 import {
   AlertTriangle, BarChart3, TrendingUp, Zap, Repeat,
-  ChevronDown, ChevronUp, Sparkles, Check,
+  ChevronDown, ChevronUp, Sparkles, Check, Clock,
 } from "lucide-react";
+
+// Consistent compact "not enough data yet" card — used everywhere on this
+// page instead of each section hand-rolling its own empty state. Deliberately
+// small: an empty state should never take up as much space as real content.
+function MiniEmptyState({ icon: Icon = Clock, children }) {
+  return (
+    <div className="flex items-start gap-2.5 rounded-xl bg-gray-50 p-4 dark:bg-white/5">
+      <Icon className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400 dark:text-app-muted" aria-hidden />
+      <p className="text-sm text-app-muted">{children}</p>
+    </div>
+  );
+}
 
 // ── Palette ────────────────────────────────────────────────
 const PIE_COLORS = [
@@ -867,26 +879,17 @@ export default function Analytics() {
                 <p className="mb-0.5 text-sm font-semibold text-gray-900 dark:text-white">Monthly spend trend</p>
                 <p className="mb-3 text-xs text-gray-400 dark:text-app-muted">Total spend by calendar month</p>
                 {trendData.length < 3 ? (
-                  <div className="rounded-xl bg-gray-50 px-4 py-5 dark:bg-white/[0.03]">
-                    {trendData.length > 0 ? (
+                  <MiniEmptyState icon={BarChart3}>
+                    Spending trends need at least 3 months of data. You have{" "}
+                    {trendData.length} so far — check back next month!
+                    {trendData.length > 0 && (
                       <>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {trendData[trendData.length - 1]?.label} —{" "}
-                          {formatINR(trendData[trendData.length - 1]?.total || 0)} spent
-                        </p>
-                        {topCategory && (
-                          <p className="mt-1 text-xs text-gray-500 dark:text-app-muted">
-                            Top: {titleCase(topCategory)}
-                          </p>
-                        )}
+                        {" "}Latest: {trendData[trendData.length - 1]?.label} —{" "}
+                        {formatINR(trendData[trendData.length - 1]?.total || 0)} spent
+                        {topCategory && ` (top: ${titleCase(topCategory)})`}.
                       </>
-                    ) : (
-                      <p className="text-sm text-gray-500 dark:text-app-muted">No expense data yet.</p>
                     )}
-                    <p className="mt-2 text-xs text-gray-400 dark:text-app-muted">
-                      Monthly trend will appear after 3 months of data
-                    </p>
-                  </div>
+                  </MiniEmptyState>
                 ) : (
                   <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={trendData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -908,11 +911,19 @@ export default function Analytics() {
                 <p className="mb-0.5 text-sm font-semibold text-gray-900 dark:text-white">Income over time</p>
                 <p className="mb-3 text-xs text-gray-400 dark:text-app-muted">Your earning trends</p>
                 {incomeChartData.length < 2 ? (
-                  <div className="flex flex-col items-start gap-3 rounded-xl bg-gray-50 px-4 py-5 dark:bg-white/[0.03]">
-                    <p className="text-sm text-gray-500 dark:text-app-muted">
-                      Income trend appears after 2 months of entries
-                    </p>
-                    <button type="button" onClick={() => navigate("/")} className={BTN_PRIMARY}>
+                  <div className="rounded-xl bg-gray-50 p-4 dark:bg-white/5">
+                    <div className="flex items-start gap-2.5">
+                      <Clock className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400 dark:text-app-muted" aria-hidden />
+                      <p className="text-sm text-app-muted">
+                        Income trends need at least 2 months of income records. You have{" "}
+                        {incomeChartData.length} so far.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/")}
+                      className={`${BTN_PRIMARY} mt-3`}
+                    >
                       Add Income
                     </button>
                   </div>
@@ -940,11 +951,24 @@ export default function Analytics() {
           <SpendingHeatmap expenses={allExpenses} />
 
           {/* ══════════════════════════════════════════════
-              SECTION 7 — Forecast (established only)
+              SECTION 7 — Forecast
+              Gated on totalExpenses (already &gt;=10 in this branch), not the
+              coarser "established" (30+ rows) bucket — the backend's own
+              Prophet/rule-based split already handles small datasets
+              gracefully, keyed off transaction date range, not row count. A
+              user who bulk-imports 2 months of history has plenty of date
+              range even with far fewer than 30 rows.
           ══════════════════════════════════════════════ */}
-          {userState === "established" && (
+          {totalExpenses > 0 && (
             <motion.div {...fadeUp(0.5)}>
               <div className={CARD}>
+                {!forecastSummary || forecastSummary.method === "no_data" ? (
+                  <MiniEmptyState icon={Clock}>
+                    Spending forecasts need a few days of expense history to find a pattern. Keep
+                    tracking and this will unlock automatically.
+                  </MiniEmptyState>
+                ) : (
+                <>
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-app-muted">
@@ -1013,6 +1037,8 @@ export default function Analytics() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+                </>
+                )}
               </div>
             </motion.div>
           )}

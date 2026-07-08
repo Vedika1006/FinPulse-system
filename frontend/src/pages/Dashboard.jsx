@@ -26,6 +26,7 @@ import KPICards from "../components/dashboard/KPICards";
 import SmartAlerts from "../components/dashboard/SmartAlerts";
 import UpcomingSubscriptions from "../components/dashboard/UpcomingSubscriptions";
 import EMIOverview from "../components/dashboard/EMIOverview";
+import OnboardingWizard, { ONBOARDING_PROGRESS_KEY } from "../components/OnboardingWizard";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -59,6 +60,7 @@ const Dashboard = () => {
   const [weeklyActionLoading,  setWeeklyActionLoading]  = useState(false);
   const [hasBudgets,           setHasBudgets]           = useState(false);
   const [budgetVsActual,       setBudgetVsActual]       = useState(null);
+  const [totalMonthlyEMI,      setTotalMonthlyEMI]      = useState(0);
   const [onboardingDismissed,  setOnboardingDismissed]  = useState(
     () => localStorage.getItem("onboarding_done") === "true"
   );
@@ -100,18 +102,20 @@ const Dashboard = () => {
       } catch (err) { console.error(err); }
 
       try {
-        const [t, c, e, bdg, bva] = await Promise.all([
+        const [t, c, e, bdg, bva, emiSummaryRes] = await Promise.all([
           getMonthlyTrend(),
           getCategoryData(currentMonthParam()),
           getRecentExpenses(),
           API.get("/budgets/"),
           getBudgetVsActual(currentMonthParam()).catch(() => null),
+          API.get("/emi/summary").catch(() => null),
         ]);
         setTrend(t);
         setCategory(c);
         setExpenses(e);
         setHasBudgets(Array.isArray(bdg.data) && bdg.data.length > 0);
         setBudgetVsActual(bva);
+        setTotalMonthlyEMI(Number(emiSummaryRes?.data?.total_monthly_emi || 0));
       } catch (err) { console.error(err); }
 
       try {
@@ -578,6 +582,22 @@ const Dashboard = () => {
 
   if (loading) return <DashboardSkeleton />;
 
+  // Brand new = zero expenses AND zero income, ever — not just this month.
+  // Replaces the whole Dashboard (not the lighter "Welcome to FinPulse"
+  // checklist below, which still applies once they have *some* data but are
+  // missing a piece — e.g. expenses imported but no budget yet).
+  const isBrandNewUser = allExpenses.length === 0 && Object.keys(incomeByMonth).length === 0;
+  const wizardDismissed = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(ONBOARDING_PROGRESS_KEY))?.dismissed === true;
+    } catch {
+      return false;
+    }
+  })();
+  if (isBrandNewUser && !wizardDismissed) {
+    return <OnboardingWizard onComplete={() => window.location.reload()} />;
+  }
+
   // ── Shared helpers ──────────────────────────────────────────
   const btnPrimary   = "rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-[#06080F] shadow-sm transition hover:bg-cyan-400 active:scale-[0.99]";
   const btnSecondary = "rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 shadow-sm transition hover:bg-gray-50 dark:border-white/[0.08] dark:bg-app-surface dark:text-app-muted dark:hover:bg-white/5";
@@ -603,6 +623,7 @@ const Dashboard = () => {
           income={totalCredit}
           totalExpenses={totalExpenses}
           totalBudget={memory?.meta?.month_total_budget || 0}
+          totalMonthlyEMI={totalMonthlyEMI}
         />
       </motion.div>
 
@@ -676,6 +697,7 @@ const Dashboard = () => {
             setIncomeModal={setIncomeModal}
             topOverBudgetCategory={topOverBudgetCategory}
             navigate={navigate}
+            totalMonthlyEMI={totalMonthlyEMI}
           />
         )}
       </motion.div>

@@ -39,7 +39,7 @@ const fallbackHealthText = (score) => {
   return "Needs attention — consider reducing discretionary spending and setting tighter budgets.";
 };
 
-const HeroBanner = ({ displayName, health, healthDetail, cashflowPrediction, formatCurrency, income, totalExpenses, totalBudget }) => {
+const HeroBanner = ({ displayName, health, healthDetail, cashflowPrediction, formatCurrency, income, totalExpenses, totalBudget, totalMonthlyEMI }) => {
   const navigate = useNavigate();
   const [showScoreExplainer, setShowScoreExplainer] = useState(false);
 
@@ -50,11 +50,15 @@ const HeroBanner = ({ displayName, health, healthDetail, cashflowPrediction, for
   const isEarlyEstimate = daysElapsedInMonth >= 5 && daysElapsedInMonth < 10;
 
   const totalIncome = income || 0;
+  const emiBurden = totalMonthlyEMI || 0;
   // Reserved = what's set aside for the month (budget, or a 30% estimate if
   // no budget is set) — but never less than what's actually been spent,
-  // since overspending the budget means that money is committed regardless.
+  // since overspending the budget means that money is committed regardless —
+  // plus the monthly EMI burden, since that money isn't available to spend
+  // either even though it never becomes an Expense row (avoids double-
+  // counting against imported bank statements that include the EMI debit).
   const usingBudgetFallback = !totalBudget || totalBudget <= 0;
-  const reserved = Math.max(usingBudgetFallback ? totalIncome * 0.3 : totalBudget, totalExpenses || 0);
+  const reserved = Math.max(usingBudgetFallback ? totalIncome * 0.3 : totalBudget, totalExpenses || 0) + emiBurden;
   const availableToSpend = Math.max(totalIncome - reserved, 0);
   const safeToSpendPerDay = daysRemaining > 0 ? Math.round(availableToSpend / daysRemaining) : 0;
 
@@ -196,9 +200,17 @@ const HeroBanner = ({ displayName, health, healthDetail, cashflowPrediction, for
             </button>
           </div>
           <p className="text-xs text-app-muted mt-1.5 ml-14">
-            {usingBudgetFallback
-              ? `Based on your income (30% reserved for savings) and ${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'} left this month`
-              : `Based on your income, budgets, and ${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'} left this month`}
+            {(() => {
+              const daysPhrase = `${daysRemaining} ${daysRemaining === 1 ? "day" : "days"} left this month`;
+              if (usingBudgetFallback) {
+                return emiBurden > 0
+                  ? `Based on your income (30% reserved for savings), ${formatCurrency(emiBurden)} EMIs, and ${daysPhrase}`
+                  : `Based on your income (30% reserved for savings) and ${daysPhrase}`;
+              }
+              return emiBurden > 0
+                ? `Based on your income, budgets, ${formatCurrency(emiBurden)} EMIs, and ${daysPhrase}`
+                : `Based on your income, budgets, and ${daysPhrase}`;
+            })()}
           </p>
           {usingBudgetFallback && (
             <button

@@ -1,13 +1,18 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import API from "../api/axios";
 import { addExpense } from "../api/expenses";
 import { useToast } from "./ToastProvider";
 import { Sparkles, Loader2, Mic, MicOff } from "lucide-react";
 
-const NLExpenseInput = ({ onExpenseAdded }) => {
+const NLExpenseInput = ({ onExpenseAdded, autoFocus = false }) => {
   const [text,    setText]    = useState("");
   const [loading, setLoading] = useState(false);
   const { showToast } = useToast();
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (autoFocus) inputRef.current?.focus();
+  }, [autoFocus]);
 
   // ── Voice recognition state ──────────────────────────────
   const [isListening, setIsListening] = useState(false);
@@ -82,6 +87,7 @@ const NLExpenseInput = ({ onExpenseAdded }) => {
           </div>
 
           <input
+            ref={inputRef}
             type="text"
             value={text}
             onChange={(e) => setText(e.target.value)}
