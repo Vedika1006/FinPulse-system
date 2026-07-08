@@ -5,6 +5,24 @@ import {
   CartesianGrid, Cell,
 } from "recharts";
 
+// Week-over-week change needs to distinguish "no data to compare" (both
+// weeks zero), "can't compute a percentage from zero" (last week zero, this
+// week not), and a genuine, calculable -100% (spending dropped to zero from
+// a real baseline) — these are three different situations, not one "—".
+function weeklyChangeDisplay(thisTotal, prevTotal) {
+  if (prevTotal === 0 && thisTotal === 0) {
+    return { text: "—", className: "text-gray-400 dark:text-app-muted" };
+  }
+  if (prevTotal === 0 && thisTotal > 0) {
+    return { text: "New", className: "text-gray-400 dark:text-app-muted" };
+  }
+  const rounded = Math.round(((thisTotal - prevTotal) / prevTotal) * 100);
+  const text = `${rounded >= 0 ? "+" : ""}${rounded}%`;
+  const className =
+    rounded > 0 ? "text-red-500" : rounded < 0 ? "text-emerald-500" : "text-gray-400 dark:text-app-muted";
+  return { text, className };
+}
+
 const WeeklyReport = ({
   weekly,
   weeklyBars,
@@ -41,15 +59,15 @@ const WeeklyReport = ({
       {/* KPI tiles — 4-col grid; suggested action spans full width */}
       <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
         {[
-          { label: "Change vs last week", value: (weekly.prevTotal > 0 && weekly.thisTotal > 0) ? `${weekly.pct >= 0 ? "+" : ""}${weekly.pct.toFixed(0)}%` : "N/A", textClass: "font-mono text-lg tabular-nums" },
+          { label: "Change vs last week", value: weeklyChangeDisplay(weekly.thisTotal, weekly.prevTotal).text, textClass: "font-mono text-lg tabular-nums", colorClass: weeklyChangeDisplay(weekly.thisTotal, weekly.prevTotal).className },
           { label: "Weekly expense",      value: formatCurrency(weekly.thisTotal),                                                        textClass: "font-mono text-xl font-bold tabular-nums" },
           { label: "Top category",        value: weekly.topCategory ? String(weekly.topCategory) : "—",                                  textClass: "text-lg font-bold" },
           { label: "Risk level",          value: weekly.risk,                                                                             textClass: "text-lg tabular-nums" },
           { label: "Suggested action",    value: weeklyActionLoading ? "Generating…" : weeklyAction || "—",                              textClass: "text-sm leading-snug", colSpan: "col-span-2 md:col-span-4" },
-        ].map(({ label, value, textClass, colSpan = "" }) => (
+        ].map(({ label, value, textClass, colSpan = "", colorClass }) => (
           <div key={label} className={`overflow-hidden rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-white/[0.04] dark:bg-app-surface ${colSpan}`}>
             <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-app-muted">{label}</p>
-            <p className={`mt-1.5 font-semibold text-gray-900 dark:text-app-ink ${textClass}`}>
+            <p className={`mt-1.5 font-semibold ${colorClass || "text-gray-900 dark:text-app-ink"} ${textClass}`}>
               {value}
             </p>
           </div>
@@ -93,7 +111,7 @@ const WeeklyReport = ({
         <p className="mt-3 text-sm text-gray-500 dark:text-app-muted">
           At this rate, you will spend{" "}
           <span className="font-semibold text-gray-900 dark:text-app-ink">{formatCurrency(cashflowPrediction)}</span>{" "}
-          this month.
+          this month{new Date().getDate() < 10 ? " (early estimate)." : "."}
         </p>
       )}
     </div>

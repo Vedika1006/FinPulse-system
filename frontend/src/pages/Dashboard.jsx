@@ -9,6 +9,7 @@ import {
   getCategoryData,
   getRecentExpenses,
 } from "../api/dashboard";
+import { getBudgetVsActual } from "../api/budgets";
 import API from "../api/axios";
 import { formatCurrency as globalFormatCurrency } from "../utils/currency";
 import { useToast } from "../components/ToastProvider";
@@ -32,6 +33,7 @@ const Dashboard = () => {
   const { showToast } = useToast();
 
   const [health,               setHealth]               = useState(0);
+  const [healthDetail,         setHealthDetail]         = useState(null);
   const [trend,                setTrend]                = useState([]);
   const [category,             setCategory]             = useState([]);
   const [expenses,             setExpenses]             = useState([]);
@@ -56,6 +58,7 @@ const Dashboard = () => {
   const [weeklyAction,         setWeeklyAction]         = useState("");
   const [weeklyActionLoading,  setWeeklyActionLoading]  = useState(false);
   const [hasBudgets,           setHasBudgets]           = useState(false);
+  const [budgetVsActual,       setBudgetVsActual]       = useState(null);
   const [onboardingDismissed,  setOnboardingDismissed]  = useState(
     () => localStorage.getItem("onboarding_done") === "true"
   );
@@ -93,19 +96,22 @@ const Dashboard = () => {
       try {
         const h = await getHealthScore();
         setHealth(h.health_score ?? 0);
+        setHealthDetail(h);
       } catch (err) { console.error(err); }
 
       try {
-        const [t, c, e, bdg] = await Promise.all([
+        const [t, c, e, bdg, bva] = await Promise.all([
           getMonthlyTrend(),
           getCategoryData(currentMonthParam()),
           getRecentExpenses(),
           API.get("/budgets/"),
+          getBudgetVsActual(currentMonthParam()).catch(() => null),
         ]);
         setTrend(t);
         setCategory(c);
         setExpenses(e);
         setHasBudgets(Array.isArray(bdg.data) && bdg.data.length > 0);
+        setBudgetVsActual(bva);
       } catch (err) { console.error(err); }
 
       try {
@@ -136,6 +142,28 @@ const Dashboard = () => {
   const totalCredit   = income?.amount ? Number(income.amount) : 0;
   const savings       = totalCredit - totalExpenses;
 
+  // The single most over-budget category this month (if any budgets are
+  // set), used to make budget alerts specific instead of a bare total.
+  const topOverBudgetCategory = useMemo(() => {
+    const cats = Array.isArray(budgetVsActual?.categories) ? budgetVsActual.categories : [];
+    const overBudget = cats
+      .map((c) => ({ ...c, overage: Number(c.actual_spent || 0) - Number(c.budget || 0) }))
+      .filter((c) => c.overage > 0)
+      .sort((a, b) => b.overage - a.overage);
+    return overBudget[0] || null;
+  }, [budgetVsActual]);
+
+  const currentMonthLabel = new Date().toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+
+  const budgetAlertText = (overspendAmount) => {
+    if (topOverBudgetCategory) {
+      const raw = String(topOverBudgetCategory.category || "");
+      const catName = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+      return `${catName} budget exceeded for ${currentMonthLabel} — ${formatCurrency(topOverBudgetCategory.actual_spent)} spent vs ${formatCurrency(topOverBudgetCategory.budget)} limit`;
+    }
+    return `Budget exceeded for ${currentMonthLabel} (over by ${formatCurrency(overspendAmount)})`;
+  };
+
   // ── Alert banners (Smart Alerts section) ───────────────────
   const alerts = useMemo(() => {
     const a = [];
@@ -145,13 +173,13 @@ const Dashboard = () => {
     if ((memory?.meta?.month_total_budget || 0) > 0 && (memory?.meta?.month_overspend || 0) > 0) {
       a.push({
         tone: "red",
-        text: `Budget almost exceeded (over by ${currencySymbol}${Number(memory.meta.month_overspend).toLocaleString("en-IN")})`,
+        text: budgetAlertText(memory.meta.month_overspend),
       });
     }
     return a.length
       ? a.slice(0, 3)
       : [{ tone: "yellow", text: "Spending is stable. Keep monitoring weekly variance." }];
-  }, [health, income, totalExpenses, totalCredit, memory, currencySymbol]);
+  }, [health, income, totalExpenses, totalCredit, memory, currencySymbol, topOverBudgetCategory]);
 
   // ── Chart styling ───────────────────────────────────────────
   const chartTooltipStyle = isDark
@@ -205,10 +233,23 @@ const Dashboard = () => {
       }
     }
 
+    // "Other" as the #1 category tells the user nothing useful — prefer the
+    // top category that's actually identifiable, falling back to a clearer
+    // "Uncategorized" label only when every dollar this week was "other".
+    const titleCase = (s) => {
+      const str = String(s || "");
+      return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    };
+    const rankedCats = Array.from(catTotals.entries()).sort((a, b) => b[1] - a[1]);
     let topCategory = null;
-    let topAmount   = 0;
-    for (const [c, v] of catTotals.entries()) {
-      if (v > topAmount) { topAmount = v; topCategory = c; }
+    if (rankedCats.length > 0) {
+      const [firstCat] = rankedCats[0];
+      if (String(firstCat).toLowerCase() === "other") {
+        const nextNonOther = rankedCats.find(([c]) => String(c).toLowerCase() !== "other");
+        topCategory = nextNonOther ? titleCase(nextNonOther[0]) : "Uncategorized";
+      } else {
+        topCategory = titleCase(firstCat);
+      }
     }
 
     const pct  = prevTotal > 0 ? ((thisTotal - prevTotal) / prevTotal) * 100 : 0;
@@ -277,11 +318,11 @@ const Dashboard = () => {
   const smartAlerts = useMemo(() => {
     const a = [];
     if (weekly.prevTotal > 0 && weekly.pct >= 30)
-      a.push(`You spent ${weekly.pct.toFixed(0)}% more than last week`);
+      a.push(`You spent ${Math.round(weekly.pct)}% more than last week`);
     if ((memory?.meta?.month_total_budget || 0) > 0 && (memory?.meta?.month_overspend || 0) > 0)
-      a.push(`Budget almost exceeded (over by ₹${Number(memory.meta.month_overspend).toLocaleString("en-IN")})`);
+      a.push(budgetAlertText(memory.meta.month_overspend));
     return a.slice(0, 2);
-  }, [weekly, memory]);
+  }, [weekly, memory, topOverBudgetCategory]);
 
   // ── AI explanation helper ───────────────────────────────────
   const askAIExplain = async (section, context) => {
@@ -556,6 +597,7 @@ const Dashboard = () => {
         <HeroBanner
           displayName={displayName}
           health={health}
+          healthDetail={healthDetail}
           cashflowPrediction={cashflowPrediction}
           formatCurrency={formatCurrency}
           income={totalCredit}
@@ -632,6 +674,8 @@ const Dashboard = () => {
             formatCurrency={formatCurrency}
             btnPrimary={btnPrimary}
             setIncomeModal={setIncomeModal}
+            topOverBudgetCategory={topOverBudgetCategory}
+            navigate={navigate}
           />
         )}
       </motion.div>

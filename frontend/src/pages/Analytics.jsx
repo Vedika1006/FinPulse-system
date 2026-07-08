@@ -259,7 +259,17 @@ export default function Analytics() {
 
   const sortedPieData = useMemo(() => [...pieData].sort((a, b) => b.total - a.total), [pieData]);
   const totalSpent    = useMemo(() => pieData.reduce((s, d) => s + d.total, 0), [pieData]);
-  const topCategory   = sortedPieData[0]?.category || null;
+  // "Other" as the #1 category tells the user nothing useful — prefer the
+  // top category that's actually identifiable.
+  const topCategory = useMemo(() => {
+    if (sortedPieData.length === 0) return null;
+    const first = sortedPieData[0]?.category;
+    if (String(first || "").toLowerCase() === "other") {
+      const nextNonOther = sortedPieData.find((d) => String(d.category || "").toLowerCase() !== "other");
+      return nextNonOther ? nextNonOther.category : "uncategorized";
+    }
+    return first || null;
+  }, [sortedPieData]);
 
   const thisMonthExpenses = useMemo(() => {
     const cm = new Date().getMonth();

@@ -9,6 +9,8 @@ const KPICards = ({
   formatCurrency,
   btnPrimary,
   setIncomeModal,
+  topOverBudgetCategory,
+  navigate,
 }) => {
   const currentMonthLabel = new Date().toLocaleDateString("en-IN", { month: "short", year: "numeric" });
 
@@ -85,6 +87,33 @@ const KPICards = ({
             <p className="mt-1 text-xs text-gray-400 dark:text-app-muted">
               {(totalCredit > 0 ? (savings / totalCredit) * 100 : 0).toFixed(1)}% savings rate
             </p>
+            {savings < 0 && (
+              <div className="mt-2 space-y-1">
+                {topOverBudgetCategory ? (
+                  <p className="text-xs text-app-muted">
+                    Your top overspend:{" "}
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                      {String(topOverBudgetCategory.category || "").charAt(0).toUpperCase() +
+                        String(topOverBudgetCategory.category || "").slice(1).toLowerCase()}
+                    </span>{" "}
+                    is {formatCurrency(topOverBudgetCategory.overage)} over budget
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => navigate?.("/analytics")}
+                    className="text-xs text-app-accent hover:underline cursor-pointer"
+                  >
+                    Review spending →
+                  </button>
+                )}
+                {Math.abs(savings) > totalCredit && (
+                  <p className="text-xs text-app-muted">
+                    Tip: this may include expenses from previous months if recently imported
+                  </p>
+                )}
+              </div>
+            )}
           </>
         ) : (
           <p className="mt-1.5 text-sm text-gray-400 dark:text-app-muted">Add income to calculate</p>
