@@ -222,7 +222,7 @@ MERCHANT_CATEGORIES: list[tuple[str, str]] = [
 
 
 
-    # ── Transport ─────────────────────────────────────────────────────
+    # ── Transport (daily/local commuting) ───────────────────────────────
 
     ("Ola", "Transport"),
 
@@ -243,36 +243,6 @@ MERCHANT_CATEGORIES: list[tuple[str, str]] = [
     ("FastTag", "Transport"),
 
     ("NHAI", "Transport"),
-
-    ("IRCTC", "Transport"),
-
-    ("Indian Railways", "Transport"),
-
-    ("IndiGo", "Transport"),
-
-    ("Air India", "Transport"),
-
-    ("SpiceJet", "Transport"),
-
-    ("Vistara", "Transport"),
-
-    ("Akasa Air", "Transport"),
-
-    ("GoFirst", "Transport"),
-
-    ("GoAir", "Transport"),
-
-    ("Air Asia", "Transport"),
-
-    ("MakeMyTrip", "Transport"),
-
-    ("Yatra", "Transport"),
-
-    ("Cleartrip", "Transport"),
-
-    ("redBus", "Transport"),
-
-    ("Abhibus", "Transport"),
 
     ("Bounce", "Transport"),
 
@@ -305,6 +275,39 @@ MERCHANT_CATEGORIES: list[tuple[str, str]] = [
     ("DTC", "Transport"),
 
     ("BEST bus", "Transport"),
+
+
+    # ── Travel (flights, trains, intercity/holiday — distinct from daily commuting) ──
+
+    ("IRCTC", "Travel"),
+
+    ("Indian Railways", "Travel"),
+
+    ("IndiGo", "Travel"),
+
+    ("Air India", "Travel"),
+
+    ("SpiceJet", "Travel"),
+
+    ("Vistara", "Travel"),
+
+    ("Akasa Air", "Travel"),
+
+    ("GoFirst", "Travel"),
+
+    ("GoAir", "Travel"),
+
+    ("Air Asia", "Travel"),
+
+    ("MakeMyTrip", "Travel"),
+
+    ("Yatra", "Travel"),
+
+    ("Cleartrip", "Travel"),
+
+    ("redBus", "Travel"),
+
+    ("Abhibus", "Travel"),
 
 
 
@@ -450,57 +453,57 @@ MERCHANT_CATEGORIES: list[tuple[str, str]] = [
 
 
 
-    # ── Healthcare ────────────────────────────────────────────────────
+    # ── Health ────────────────────────────────────────────────────────
 
-    ("Apollo Pharmacy", "Healthcare"),
+    ("Apollo Pharmacy", "Health"),
 
-    ("Apollo Hospitals", "Healthcare"),
+    ("Apollo Hospitals", "Health"),
 
-    ("MedPlus", "Healthcare"),
+    ("MedPlus", "Health"),
 
-    ("NetMeds", "Healthcare"),
+    ("NetMeds", "Health"),
 
-    ("1mg", "Healthcare"),
+    ("1mg", "Health"),
 
-    ("PharmEasy", "Healthcare"),
+    ("PharmEasy", "Health"),
 
-    ("Practo", "Healthcare"),
+    ("Practo", "Health"),
 
-    ("Fortis", "Healthcare"),
+    ("Fortis", "Health"),
 
-    ("Max Healthcare", "Healthcare"),
+    ("Max Healthcare", "Health"),
 
-    ("Manipal Hospitals", "Healthcare"),
+    ("Manipal Hospitals", "Health"),
 
-    ("Columbia Asia", "Healthcare"),
+    ("Columbia Asia", "Health"),
 
-    ("Narayana Health", "Healthcare"),
+    ("Narayana Health", "Health"),
 
-    ("Lybrate", "Healthcare"),
+    ("Lybrate", "Health"),
 
-    ("Tata 1mg", "Healthcare"),
+    ("Tata 1mg", "Health"),
 
-    ("Truemeds", "Healthcare"),
+    ("Truemeds", "Health"),
 
-    ("Wellness Forever", "Healthcare"),
+    ("Wellness Forever", "Health"),
 
-    ("Medikart", "Healthcare"),
+    ("Medikart", "Health"),
 
-    ("doctor", "Healthcare"),
+    ("doctor", "Health"),
 
-    ("hospital", "Healthcare"),
+    ("hospital", "Health"),
 
-    ("clinic", "Healthcare"),
+    ("clinic", "Health"),
 
-    ("pharmacy", "Healthcare"),
+    ("pharmacy", "Health"),
 
-    ("chemist", "Healthcare"),
+    ("chemist", "Health"),
 
-    ("medicine", "Healthcare"),
+    ("medicine", "Health"),
 
-    ("diagnostic", "Healthcare"),
+    ("diagnostic", "Health"),
 
-    ("lab test", "Healthcare"),
+    ("lab test", "Health"),
 
 
 
@@ -710,16 +713,22 @@ def _resolve_query_vector(query: str) -> np.ndarray | None:
     Map free-text to a pre-computed merchant embedding when the query
     references a known merchant name, then FAISS scores it.
     """
+    import re
     from difflib import SequenceMatcher
 
     q = query.lower().strip()
 
-    # 1) Substring match — "Swiggy dinner" contains "swiggy"
+    # 1) Word-boundary match — "Swiggy dinner" contains "swiggy" as a whole
+    # word. Word boundaries matter: a naive substring check would match the
+    # short merchant name "Vi" inside unrelated words like "via" or
+    # "vitamin", silently mis-routing something like "NoBroker rent payment
+    # via nobroker" to Vi/Vodafone's category instead of falling through to
+    # Groq.
     best_name = None
     best_len = 0
     for name in _merchant_names:
         n = name.lower()
-        if n in q and len(n) > best_len:
+        if re.search(r"\b" + re.escape(n) + r"\b", q) and len(n) > best_len:
             best_name = name
             best_len = len(n)
     if best_name:
@@ -818,13 +827,23 @@ Merchant: "{merchant}"
 
 Description: "{description}"{hint_line}
 
+Pick ONE category from this exact list — use the examples to disambiguate close calls:
 
-
-Pick ONE category from this exact list:
-
-Food, Transport, Shopping, Entertainment, Healthcare, Utilities, Groceries, Education, Other
-
-
+- Rent: monthly rent, PG accommodation, hostel fees, landlord/NoBroker payments
+- Groceries: DMart, BigBasket, Zepto, Blinkit, JioMart, supermarkets, vegetables, fruits, household supplies
+- Food: Swiggy, Zomato, restaurants, cafes, bakeries, street food, dining out (NOT grocery shopping)
+- Utilities: electricity, water, gas cylinder (Indane/HP/Bharat Gas), WiFi/broadband, mobile recharge/postpaid
+- Transport: Ola, Uber, Rapido, auto, metro, bus pass, petrol/fuel, parking, toll (local/daily commuting)
+- Travel: flights, trains (IRCTC), hotels, MakeMyTrip/Yatra, holiday/vacation expenses (NOT daily commuting)
+- Shopping: Myntra, Flipkart, Amazon, Ajio, clothing, electronics, household items, gifts
+- Entertainment: Netflix, Spotify, YouTube Premium, Hotstar, Prime Video, movies (PVR/INOX), books for leisure, games, concerts
+- Health: pharmacy (Apollo/MedPlus/1mg/Netmeds/PharmEasy), gym/fitness (Cult Fit, Gold's Gym), doctor visits, lab tests, health insurance
+- Education: courses (Udemy/Coursera), academic books, coaching, tuition/school/college fees, exam fees
+- Investment: SIP, mutual funds, stocks, PPF, FD, NPS, gold purchases
+- EMI: loan EMI payments (home/car/personal/education loan installments)
+- Personal: salon, spa, laundry, dry cleaning, personal care
+- Bills: ONLY things that don't fit above — credit card bill payments, non-health insurance premiums, government fees, fines, misc recurring payments
+- Other: genuinely unclassifiable
 
 Reply ONLY with JSON, no markdown:
 

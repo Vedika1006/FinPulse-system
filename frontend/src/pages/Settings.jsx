@@ -3,7 +3,8 @@ import { useTheme } from "../context/ThemeContext";
 import { useToast } from "../components/ToastProvider";
 import { clearAuthToken } from "../utils/auth";
 import API from "../api/axios";
-import { Check, LogOut, ShieldAlert, Key, X, AlertTriangle } from "lucide-react";
+import { Check, LogOut, ShieldAlert, Key, X, AlertTriangle, RefreshCw } from "lucide-react";
+import { CATEGORIES } from "../constants/categories";
 
 /* ── Confirm Dialog ────────────────────────────────────────────────────── */
 const ConfirmDialog = ({
@@ -224,6 +225,8 @@ export default function Settings() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showRecategorizeConfirm, setShowRecategorizeConfirm] = useState(false);
+  const [recategorizing, setRecategorizing] = useState(false);
 
   const [profile, setProfile] = useState({
     name: "",
@@ -301,6 +304,24 @@ export default function Settings() {
     setShowDeleteConfirm(true);
   };
 
+  const confirmRecategorize = async () => {
+    setRecategorizing(true);
+    try {
+      const { data } = await API.post("/expenses/recategorize");
+      setShowRecategorizeConfirm(false);
+      showToast(
+        data?.recategorized_count > 0
+          ? `${data.recategorized_count} of ${data.total_checked} expenses re-categorized`
+          : "All expenses already have up-to-date categories",
+        "success"
+      );
+    } catch {
+      showToast("Could not re-categorize expenses. Please try again.", "error");
+    } finally {
+      setRecategorizing(false);
+    }
+  };
+
   const cancelDeleteAccount = () => {
     setShowDeleteConfirm(false);
     setDeleteConfirmText("");
@@ -353,6 +374,16 @@ export default function Settings() {
         loading={deletingAccount}
         onConfirm={confirmDeleteAccount}
         onCancel={cancelDeleteAccount}
+      />
+
+      <ConfirmDialog
+        open={showRecategorizeConfirm}
+        title="Re-categorize all expenses"
+        message="This will re-analyze all your expenses and update categories using the latest categorization system. Your manually set categories may be overwritten."
+        confirmLabel="Re-categorize"
+        loading={recategorizing}
+        onConfirm={confirmRecategorize}
+        onCancel={() => setShowRecategorizeConfirm(false)}
       />
 
       <div className="mx-auto max-w-4xl space-y-6 pb-12">
@@ -454,11 +485,9 @@ export default function Settings() {
                     onChange={(e) => setPrefs({ ...prefs, defaultCategory: e.target.value })}
                     className={inputClass}
                   >
-                    <option value="Food">Food &amp; Dining</option>
-                    <option value="Transport">Transportation</option>
-                    <option value="Utilities">Utilities &amp; Bills</option>
-                    <option value="Shopping">Shopping</option>
-                    <option value="Other">Other</option>
+                    {CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>{c.value}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -541,6 +570,24 @@ export default function Settings() {
                   />
                 </div>
               </div>
+            </CardSection>
+
+            {/* Data Section */}
+            <CardSection title="Data">
+              <button
+                type="button"
+                onClick={() => setShowRecategorizeConfirm(true)}
+                className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+              >
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 text-app-accent" />
+                  Re-categorize all expenses
+                </div>
+              </button>
+              <p className="mt-2 text-xs text-gray-500 dark:text-app-muted">
+                Uses the latest categorization system to fix expenses that were mis-categorized
+                in the past (e.g. groceries filed under Food, rent under Bills).
+              </p>
             </CardSection>
 
             {/* Security Section */}

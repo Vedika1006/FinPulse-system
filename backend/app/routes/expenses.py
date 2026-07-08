@@ -63,6 +63,40 @@ def suggest_category(
     description = payload.get("description", "")
     return categorize_merchant(merchant, description)
 
+
+@router.post("/recategorize")
+def recategorize_expenses(
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user),
+):
+    """
+    One-time re-categorization utility: re-runs the current FAISS/Groq/
+    keyword categorization pipeline over every expense this user has, and
+    updates the category only when the new result differs AND is high
+    confidence (>= 0.8) — a low-confidence re-guess shouldn't silently
+    overwrite a category the user (or an earlier import) already set.
+    Idempotent: once categories converge, later runs update nothing.
+    """
+    expenses = db.query(Expense).filter(Expense.user_id == user_id).all()
+    updated_count = 0
+
+    for exp in expenses:
+        text = exp.description or ""
+        if not text.strip():
+            continue
+        result = categorize_merchant(text, text)
+        new_category = str(result.get("category", "")).strip().lower()
+        confidence = float(result.get("confidence", 0.0) or 0.0)
+        current_category = (exp.category or "").strip().lower()
+        if new_category and confidence >= 0.8 and new_category != current_category:
+            exp.category = new_category
+            updated_count += 1
+
+    if updated_count:
+        db.commit()
+
+    return {"recategorized_count": updated_count, "total_checked": len(expenses)}
+
 # ✅ GET ALL EXPENSES
 @router.get("/", response_model=list[ExpenseResponse])
 def get_expenses(

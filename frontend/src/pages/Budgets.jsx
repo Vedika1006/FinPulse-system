@@ -22,6 +22,7 @@ import { ProgressBar, budgetUsageTone } from "../components/ui/ProgressBar";
 import { AlertBanner } from "../components/ui/AlertBanner";
 import { useToast } from "../components/ToastProvider";
 import API from "../api/axios";
+import { CATEGORIES, getCategoryMeta } from "../constants/categories";
 import FormattedAIResponse from "../components/FormattedAIResponse";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
@@ -96,7 +97,7 @@ export default function Budgets() {
     const m   = searchParams.get("month");
     if (m && typeof m === "string" && m !== month) setMonth(m);
     if (cat && typeof cat === "string") {
-      setForm((f) => ({ ...f, category: cat }));
+      setForm((f) => ({ ...f, category: getCategoryMeta(cat).value }));
       setModalOpen(true);
       const next = new URLSearchParams(searchParams);
       next.delete("category");
@@ -958,9 +959,18 @@ export default function Budgets() {
           </p>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-app-subtle">Category</label>
-            <input name="category" value={form.category}
+            <select
+              name="category"
+              value={form.category ? getCategoryMeta(form.category).value : ""}
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-              className={fieldClass} placeholder="e.g. Food" required />
+              className={fieldClass}
+              required
+            >
+              <option value="" disabled>Select a category</option>
+              {CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>{c.value}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-app-subtle">Monthly limit</label>

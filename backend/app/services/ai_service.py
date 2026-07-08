@@ -711,7 +711,21 @@ def parse_expense_from_text(text: str) -> dict:
     prompt = f"""
 You are an expert at extracting financial data.
 Extract the expense details from the following text and return ONLY a valid JSON object.
-Use one of the categories: Food, Travel, Shopping, Bills, Other.
+Use one of these categories (pick the most specific one that fits):
+Rent, Groceries, Food, Utilities, Transport, Travel, Shopping, Entertainment, Health,
+Education, Investment, EMI, Personal, Bills, Other.
+Examples: rent/PG/hostel -> Rent. Zepto/BigBasket/DMart/vegetables -> Groceries.
+Swiggy/Zomato/restaurant -> Food. Electricity/water/gas/mobile recharge/wifi -> Utilities.
+Ola/Uber/petrol/metro -> Transport. Flights/trains/hotels -> Travel.
+Amazon/Flipkart/clothing -> Shopping. Netflix/Spotify/movies -> Entertainment.
+Pharmacy/doctor/lab test/health insurance -> Health.
+Gym, fitness, workout, Cult Fit, Gold's Gym -> Health (NOT Personal — a gym membership is
+a health expense, not personal care).
+Courses/tuition/school fees -> Education. SIP/mutual fund/stocks/FD -> Investment.
+Loan installment -> EMI.
+Salon, spa, haircut, laundry, dry cleaning -> Personal (personal care/grooming/chores only —
+does not include gym or fitness).
+Credit card bill/insurance/fines -> Bills.
 Date format: YYYY-MM-DD. If no date is mentioned in the text, use {datetime.utcnow().strftime('%Y-%m-%d')}.
 Properties to extract:
 - amount (number)

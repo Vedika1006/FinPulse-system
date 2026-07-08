@@ -14,6 +14,7 @@ import FormattedAIResponse from "../components/FormattedAIResponse";
 import NLExpenseInput from "../components/NLExpenseInput";
 import ReceiptScanner from "../components/ReceiptScanner";
 import CategorySuggester from "../components/CategorySuggester";
+import { CATEGORIES, getCategoryMeta } from "../constants/categories";
 
 // Severity badge rendered inline on anomalous table rows.
 // `title` gives a native browser tooltip with the reason on hover.
@@ -473,7 +474,7 @@ const Expenses = () => {
                     amount:
                       data?.amount != null ? String(data.amount) : f.amount,
                     category: data?.category
-                      ? String(data.category).trim().toLowerCase()
+                      ? getCategoryMeta(data.category).value
                       : f.category,
                     date: data?.date || f.date,
                     description:
@@ -491,19 +492,22 @@ const Expenses = () => {
                 merchant={form.description}
                 onSuggest={(result) => {
                   if (!form.category || form.category === "Other") {
-                    setForm({ ...form, category: result.category });
+                    setForm({ ...form, category: getCategoryMeta(result.category).value });
                   }
                 }}
               />
-              <input
-                type="text"
+              <select
                 name="category"
-                placeholder="Category"
-                value={form.category}
+                value={form.category ? getCategoryMeta(form.category).value : ""}
                 onChange={handleChange}
                 className={inputClass}
                 required
-              />
+              >
+                <option value="" disabled>Category</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.value}</option>
+                ))}
+              </select>
               <input
                 type="number"
                 name="amount"

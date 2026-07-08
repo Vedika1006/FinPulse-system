@@ -40,19 +40,49 @@ _PAYMENT_MODES = frozenset({
     "p2a", "p2p", "p2m", "p2u",  # IMPS person-to-X sub-mode codes
 })
 
+
+# 15-category taxonomy. Dict order matters — for a description that could
+# plausibly match more than one category (rare, but e.g. a merchant name
+# containing another as a substring), the first matching category wins, so
+# more specific categories are listed before broader ones (e.g. "rent" /
+# "groceries" before the more general "bills" catch-all).
 _CATEGORY_KEYWORDS: dict[str, list[str]] = {
+    "rent": ["rent", "nobroker", "landlord", "pg accommodation", "hostel fee", "lease"],
+    "groceries": ["zepto", "blinkit", "bigbasket", "big basket", "dmart", "d-mart",
+                  "jiomart", "jio mart", "grofers", "instamart", "spencer's", "spencers",
+                  "star bazaar", "reliance fresh", "reliance smart", "nature's basket",
+                  "more supermarket", "more retail", "supermarket", "grocery", "groceries",
+                  "kirana", "nilgiris", "spar", "lulu hypermarket"],
     "food": ["swiggy", "zomato", "ubereats", "restaurant", "cafe", "pizza", "mcdonalds",
-             "kfc", "dominos", "burger", "diner", "biryani", "dhaba"],
-    "transport": ["uber", "ola", "metro", "petrol", "fuel", "irctc", "rapido",
-                  "indigo", "spicejet", "airindia", "airways", "airport", "cab"],
-    "shopping": ["amazon", "flipkart", "myntra", "ajio", "nykaa", "snapdeal",
-                 "meesho", "zepto", "blinkit", "bigbasket", "dmart", "reliance"],
-    "bills": ["electricity", "telecom", "airtel", "jio", "vodafone", "bsnl",
-              "bescom", "msedcl", "tata power", "water", "broadband", "postpaid"],
+             "kfc", "dominos", "burger", "diner", "biryani", "dhaba", "bakery", "starbucks"],
+    "utilities": ["electricity", "electricity bill", "water bill", "gas bill", "gas cylinder",
+                  "indane", "hp gas", "bharat gas", "telecom", "airtel", "jio", "vodafone",
+                  "vi", "bsnl", "bescom", "msedcl", "tata power", "adani gas", "broadband",
+                  "wifi", "postpaid", "mobile recharge", "dth", "act fibernet", "jio fiber"],
+    "transport": ["uber", "ola", "rapido", "metro", "petrol", "diesel", "fuel", "parking",
+                  "toll", "fastag", "auto rickshaw", "cab", "bus pass", "bmtc"],
+    "travel": ["irctc", "indigo", "spicejet", "airindia", "air india", "airways", "airport",
+               "makemytrip", "yatra", "cleartrip", "goibibo", "oyo", "airbnb", "hotel",
+               "vacation", "holiday package", "redbus"],
+    "shopping": ["amazon", "flipkart", "myntra", "ajio", "nykaa", "snapdeal", "meesho",
+                 "reliance digital", "croma", "decathlon", "lifestyle", "shoppers stop",
+                 "pantaloons", "lenskart", "pepperfry", "ikea"],
     "entertainment": ["netflix", "hotstar", "prime video", "spotify", "youtube",
-                      "disney", "bookmyshow", "pvr", "inox"],
+                      "disney", "bookmyshow", "pvr", "inox", "jiosaavn", "gaana", "wynk",
+                      "apple music", "steam", "playstation", "xbox"],
     "health": ["pharmacy", "medical", "hospital", "clinic", "apollo", "medplus",
-               "1mg", "pharmeasy", "doctor", "diagnostics"],
+               "netmeds", "1mg", "pharmeasy", "practo", "doctor", "diagnostics",
+               "gym", "fitness", "cult.fit", "cult fit", "gold's gym", "golds gym",
+               "health insurance", "lab test"],
+    "education": ["byju", "unacademy", "vedantu", "udemy", "coursera", "upgrad",
+                  "simplilearn", "duolingo", "school fee", "college fee", "tuition",
+                  "coaching", "exam fee", "stationery"],
+    "investment": ["sip", "mutual fund", "zerodha", "groww", "upstox", "ppf", "nps",
+                   "fixed deposit", "fd", "stocks", "demat", "gold purchase", "gold etf"],
+    "emi": ["emi", "loan installment", "loan emi", "home loan", "car loan", "personal loan"],
+    "personal": ["salon", "spa", "parlour", "parlor", "laundry", "dry clean"],
+    "bills": ["credit card bill", "credit card payment", "insurance premium", "govt fee",
+              "government fee", "fine", "penalty", "late fee"],
 }
 
 
@@ -99,12 +129,20 @@ def clean_transaction_description(desc: str) -> str:
     return s or desc.strip()
 
 
+_CATEGORY_DISPLAY_NAME = {cat: cat.title() for cat in _CATEGORY_KEYWORDS}
+_CATEGORY_DISPLAY_NAME["emi"] = "EMI"  # .title() would give "Emi"
+
+
 def _keyword_category(desc: str) -> str | None:
     """Return a category if the description matches a known merchant keyword."""
     lower = desc.lower()
     for category, keywords in _CATEGORY_KEYWORDS.items():
-        if any(kw in lower for kw in keywords):
-            return category.title()
+        for kw in keywords:
+            # Word-boundary match — a naive substring check would match
+            # short keywords like "vi" or "fd" inside unrelated words
+            # ("via", "find") and silently mis-categorize the expense.
+            if re.search(r"\b" + re.escape(kw) + r"\b", lower):
+                return _CATEGORY_DISPLAY_NAME[category]
     return None
 
 
