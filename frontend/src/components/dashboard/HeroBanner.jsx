@@ -39,7 +39,7 @@ const fallbackHealthText = (score) => {
   return "Needs attention — consider reducing discretionary spending and setting tighter budgets.";
 };
 
-const HeroBanner = ({ displayName, health, healthDetail, cashflowPrediction, formatCurrency, income, totalExpenses, totalBudget, totalMonthlyEMI }) => {
+const HeroBanner = ({ displayName, health, healthDetail, cashflowPrediction, formatCurrency, income, totalExpenses, totalBudget, totalMonthlyEMI, onAddIncome }) => {
   const navigate = useNavigate();
   const [showScoreExplainer, setShowScoreExplainer] = useState(false);
 
@@ -230,7 +230,13 @@ const HeroBanner = ({ displayName, health, healthDetail, cashflowPrediction, for
               <p className="text-sm text-gray-900 dark:text-white font-medium">Add your income to see daily safe-to-spend</p>
               <p className="text-xs text-app-muted">We'll calculate how much you can spend each day</p>
             </div>
-            <button className="text-xs bg-app-accent text-white rounded-lg px-3 py-1.5 whitespace-nowrap">Add Income</button>
+            <button
+              type="button"
+              onClick={onAddIncome}
+              className="text-xs bg-app-accent text-white rounded-lg px-3 py-1.5 whitespace-nowrap"
+            >
+              Add Income
+            </button>
           </div>
         </div>
       )}

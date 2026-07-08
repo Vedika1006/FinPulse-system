@@ -624,6 +624,7 @@ const Dashboard = () => {
           totalExpenses={totalExpenses}
           totalBudget={memory?.meta?.month_total_budget || 0}
           totalMonthlyEMI={totalMonthlyEMI}
+          onAddIncome={() => setIncomeModal(true)}
         />
       </motion.div>
 
