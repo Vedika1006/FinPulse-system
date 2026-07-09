@@ -37,25 +37,72 @@ FinPulse is a full-stack personal finance web application that combines expense 
 
 ## Architecture Overview
 
-```
-┌──────────────┐     ┌──────────────────┐     ┌─────────────────────┐
-│   Frontend   │────▶│   Backend API    │────▶│    AI/ML Engine     │
-│  React 19    │     │   FastAPI        │     │                     │
-│  Vercel      │     │   Railway        │     │  FAISS (273 merch.) │
-│              │     │                  │     │  Groq LLM (3 models)│
-│  11 pages    │     │  13 route files  │     │  RAG Pipeline       │
-│  AI Chat     │     │  12 services     │     │  Prophet Forecast   │
-│  Voice Input │     │  JWT Auth        │     │  Isolation Forest   │
-└──────────────┘     └────────┬─────────┘     └─────────────────────┘
-                              │
-                    ┌─────────▼──────────┐
-                    │    PostgreSQL 15   │
-                    │    Neon Serverless │
-                    │    10 tables       │
-                    └────────────────────┘
-```
+```mermaid
+flowchart TB
+    User(["👤 User"])
 
-A detailed architecture diagram is available in the repository.
+    subgraph FE["🖥️ FRONTEND — React 19 + Vite · hosted on Vercel"]
+        direction TB
+        Pages["11 Pages<br/>Dashboard · Expenses · Budgets · Analytics<br/>Tax · EMI · Subscriptions · Calendar · Settings"]
+        Widgets["AI Chat Widget · Voice Input (Web Speech API)<br/>Receipt Scanner · CSV Import Wizard"]
+        Pages --- Widgets
+    end
+
+    subgraph BE["⚙️ BACKEND — FastAPI · hosted on Railway (Nixpacks)"]
+        direction TB
+        Auth["🔐 JWT Auth<br/>python-jose + bcrypt"]
+        Routes["13 Route Files"]
+        Services["12 Service Files"]
+        Scheduler["🕐 APScheduler<br/>daily recurring-expense job"]
+        Routes --> Auth
+        Routes --> Services
+        Scheduler --> Services
+    end
+
+    subgraph AI["🧠 AI / ML ENGINE"]
+        direction TB
+        FAISS["FAISS<br/>273 merchant vectors"]
+        Groq["Groq LLM<br/>chat · insights · NL parse · vision OCR"]
+        RAG["RAG Pipeline<br/>user context + TF-IDF knowledge base"]
+        Prophet["Prophet<br/>7 / 30-day forecast"]
+        IForest["Isolation Forest<br/>anomaly detection"]
+    end
+
+    subgraph DATA["🗄️ DATABASE"]
+        Postgres[("PostgreSQL 15<br/>Neon Serverless<br/>10 tables")]
+    end
+
+    GroqAPI["☁️ Groq API"]
+
+    User -->|HTTPS| Pages
+    Widgets -->|axios + Bearer JWT| Routes
+
+    Services --> FAISS
+    Services --> Groq
+    Services --> RAG
+    Services --> Prophet
+    Services --> IForest
+
+    Groq -.->|API call| GroqAPI
+    RAG -.->|API call| GroqAPI
+
+    Services -->|SQLAlchemy ORM| Postgres
+    Auth -->|SQLAlchemy ORM| Postgres
+
+    classDef frontend fill:#61DAFB,stroke:#0b6a85,color:#06283a
+    classDef backend fill:#009688,stroke:#00514a,color:#ffffff
+    classDef aiml fill:#7C3AED,stroke:#4c1d95,color:#ffffff
+    classDef db fill:#4169E1,stroke:#1e3a8a,color:#ffffff
+    classDef external fill:#F59E0B,stroke:#92400e,color:#1c1005
+    classDef user fill:#111827,stroke:#111827,color:#ffffff
+
+    class Pages,Widgets frontend
+    class Auth,Routes,Services,Scheduler backend
+    class FAISS,Groq,RAG,Prophet,IForest aiml
+    class Postgres db
+    class GroqAPI external
+    class User user
+```
 
 ---
 
@@ -283,33 +330,181 @@ Tests use SQLite in-memory (never touches production data) with Groq calls mocke
 
 ```
 FinPulse-system/
-├── frontend/
-│   ├── src/
-│   │   ├── pages/              # 11 page components
-│   │   ├── components/         # Shared UI + Dashboard + Landing
-│   │   ├── contexts/           # ThemeContext, ToastProvider
-│   │   ├── api/                # Axios instance with JWT interceptor
-│   │   └── App.jsx             # Route definitions + auth guards
-│   ├── public/                 # Logo, favicon
-│   ├── Dockerfile
-│   └── package.json
+├── .github/
+│   └── workflows/
+│       └── test.yml                    # CI pipeline — 30 pytest tests on every push
 │
 ├── backend/
 │   ├── app/
-│   │   ├── routes/             # 13 route files (auth, expenses, ai, etc.)
-│   │   ├── services/           # 12 service files (categorization, RAG, etc.)
-│   │   ├── models.py           # SQLAlchemy models (10 tables)
-│   │   ├── schemas.py          # Pydantic request/response models
-│   │   ├── database.py         # DB engine + session management
-│   │   ├── data/               # FAISS artifacts (.npy, .json)
-│   │   └── main.py             # App startup, middleware, scheduler
-│   ├── tests/                  # 30 pytest tests
-│   ├── scripts/                # Offline embedding builder
+│   │   ├── core/
+│   │   │   ├── exception_handler.py
+│   │   │   ├── exceptions.py
+│   │   │   └── security.py             # JWT decode + get_current_user dependency
+│   │   ├── data/
+│   │   │   ├── merchant_labels.json    # FAISS artifact — category per merchant
+│   │   │   ├── merchant_names.json     # FAISS artifact — merchant name list
+│   │   │   └── merchant_vectors.npy    # FAISS artifact — precomputed embeddings
+│   │   ├── routes/
+│   │   │   ├── ai.py
+│   │   │   ├── analytics.py
+│   │   │   ├── auth.py
+│   │   │   ├── auto_save_rules.py
+│   │   │   ├── budgets.py
+│   │   │   ├── emi.py
+│   │   │   ├── expenses.py
+│   │   │   ├── goals.py
+│   │   │   ├── imports.py
+│   │   │   ├── income.py
+│   │   │   ├── receipts.py
+│   │   │   ├── recurring.py
+│   │   │   └── tax.py
+│   │   ├── services/
+│   │   │   ├── ai_service.py
+│   │   │   ├── analytics_service.py
+│   │   │   ├── categorization_service.py
+│   │   │   ├── csv_import_service.py
+│   │   │   ├── emi_service.py
+│   │   │   ├── income_service.py
+│   │   │   ├── memory_service.py
+│   │   │   ├── ocr_service.py
+│   │   │   ├── rag_context_service.py
+│   │   │   ├── rag_knowledge_base.py
+│   │   │   ├── recurring_service.py
+│   │   │   └── tax_service.py
+│   │   ├── database.py                 # DB engine + session management
+│   │   ├── main.py                     # App startup, middleware, scheduler
+│   │   ├── models.py                   # SQLAlchemy models (10 tables)
+│   │   ├── schemas.py                  # Pydantic request/response models
+│   │   └── utils.py
+│   ├── scripts/
+│   │   └── build_embeddings.py         # Offline FAISS embedding builder
+│   ├── tests/
+│   │   ├── conftest.py                 # SQLite in-memory fixtures
+│   │   ├── test_ai.py
+│   │   ├── test_analytics.py
+│   │   ├── test_auth.py
+│   │   ├── test_budgets.py
+│   │   ├── test_csv_import.py
+│   │   ├── test_emi.py
+│   │   ├── test_expenses.py
+│   │   ├── test_goals.py
+│   │   ├── test_income.py
+│   │   ├── test_recurring.py
+│   │   └── test_tax.py
 │   ├── Dockerfile
-│   └── requirements.txt
+│   ├── nixpacks.toml                   # Railway build config
+│   ├── Procfile
+│   ├── railway.toml
+│   ├── requirements.txt                # Full deps (incl. Prophet/cmdstanpy)
+│   ├── requirements-test.txt           # Slim deps for fast CI installs
+│   └── start.sh                        # uvicorn launch command
 │
-├── docker-compose.yml          # One-command local setup
-├── .github/workflows/test.yml  # CI pipeline
+├── frontend/
+│   ├── public/
+│   │   ├── favicon.png
+│   │   ├── icons.svg
+│   │   └── logo.png
+│   ├── src/
+│   │   ├── api/                        # Axios wrappers per resource
+│   │   │   ├── analytics.js
+│   │   │   ├── auth.js
+│   │   │   ├── autoSaveRules.js
+│   │   │   ├── axios.js                # Axios instance + JWT interceptor
+│   │   │   ├── budgets.js
+│   │   │   ├── dashboard.js
+│   │   │   ├── expenses.js
+│   │   │   ├── goals.js
+│   │   │   ├── imports.js
+│   │   │   └── income.js
+│   │   ├── components/
+│   │   │   ├── dashboard/               # Dashboard-only subcomponents
+│   │   │   │   ├── EMIOverview.jsx
+│   │   │   │   ├── HeroBanner.jsx
+│   │   │   │   ├── KPICards.jsx
+│   │   │   │   ├── MonthlyTrend.jsx
+│   │   │   │   ├── SmartAlerts.jsx
+│   │   │   │   ├── UpcomingSubscriptions.jsx
+│   │   │   │   └── WeeklyReport.jsx
+│   │   │   ├── landing/                 # Landing-page-only visuals
+│   │   │   │   ├── DashboardMockup.jsx
+│   │   │   │   ├── FeatureRow.jsx
+│   │   │   │   ├── FeatureVisuals.jsx
+│   │   │   │   ├── HowItWorks.jsx
+│   │   │   │   ├── ProblemSection.jsx
+│   │   │   │   ├── TechCredibility.jsx
+│   │   │   │   └── motionVariants.js
+│   │   │   ├── ui/                      # Shared primitives
+│   │   │   │   ├── AlertBanner.jsx
+│   │   │   │   ├── Card.jsx
+│   │   │   │   ├── ConfirmDialog.jsx
+│   │   │   │   ├── EmptyState.jsx
+│   │   │   │   ├── Modal.jsx
+│   │   │   │   ├── ProgressBar.jsx
+│   │   │   │   ├── Skeleton.jsx
+│   │   │   │   └── Spinner.jsx
+│   │   │   ├── AIChat.jsx               # Floating AI chat widget (all pages)
+│   │   │   ├── AIFinancialInsights.jsx
+│   │   │   ├── AnomalyAlerts.jsx
+│   │   │   ├── AuthModal.jsx
+│   │   │   ├── BehaviorCard.jsx
+│   │   │   ├── CategorySuggester.jsx
+│   │   │   ├── ErrorBoundary.jsx
+│   │   │   ├── ForecastChart.jsx
+│   │   │   ├── FormattedAIResponse.jsx
+│   │   │   ├── InsightCard.jsx
+│   │   │   ├── Layout.jsx               # Sidebar + Navbar + AIChat wrapper
+│   │   │   ├── Navbar.jsx
+│   │   │   ├── NLExpenseInput.jsx       # Text + voice expense entry
+│   │   │   ├── NotificationBell.jsx
+│   │   │   ├── OnboardingWizard.jsx
+│   │   │   ├── ReceiptScanner.jsx
+│   │   │   ├── Sidebar.jsx
+│   │   │   ├── SpendingForecast.jsx
+│   │   │   ├── SpendingHeatmap.jsx
+│   │   │   ├── ToastProvider.jsx
+│   │   │   └── WhatIfSimulator.jsx
+│   │   ├── constants/
+│   │   │   └── categories.js
+│   │   ├── context/
+│   │   │   └── ThemeContext.jsx         # Light/dark + currency state
+│   │   ├── hooks/
+│   │   │   ├── useCountUp.js
+│   │   │   └── useTypewriter.js
+│   │   ├── pages/                       # 13 route components
+│   │   │   ├── Analytics.jsx
+│   │   │   ├── Budgets.jsx
+│   │   │   ├── CashflowCalendar.jsx
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── EMI.jsx
+│   │   │   ├── Expenses.jsx
+│   │   │   ├── FinancialInbox.jsx
+│   │   │   ├── LandingPage.jsx
+│   │   │   ├── Login.jsx
+│   │   │   ├── MoneyImport.jsx
+│   │   │   ├── Settings.jsx
+│   │   │   ├── Subscriptions.jsx
+│   │   │   └── Tax.jsx
+│   │   ├── utils/
+│   │   │   ├── auth.js
+│   │   │   ├── buildAlerts.js
+│   │   │   ├── currency.js
+│   │   │   ├── dueDate.js
+│   │   │   ├── inferInsightVariant.js
+│   │   │   ├── mapInsightToActions.js
+│   │   │   └── month.js
+│   │   ├── App.jsx                      # Route definitions + auth guards
+│   │   ├── index.css
+│   │   └── main.jsx
+│   ├── Dockerfile
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package.json
+│   ├── postcss.config.js
+│   ├── tailwind.config.js
+│   └── vercel.json                      # SPA rewrite rule
+│
+├── docker-compose.yml                   # One-command local setup
+├── LICENSE
 └── README.md
 ```
 
@@ -351,4 +546,4 @@ Built as a campus placement project demonstrating full-stack development, machin
 
 ## License
 
-This project is for educational and portfolio purposes.
+This project is licensed under the [MIT License](LICENSE).
