@@ -27,6 +27,18 @@ AI-powered personal finance app for Indian users — expense tracking, budgeting
 
 Screenshots coming soon.
 
+## Run with Docker
+
+The fastest way to run FinPulse locally:
+
+1. Make sure Docker and Docker Compose are installed
+2. Clone the repo: `git clone https://github.com/Vedika1006/FinPulse-system.git`
+3. Add your Groq API key: `export GROQ_API_KEY=your-key-here`
+4. Start everything: `docker-compose up --build`
+5. Open http://localhost:3000
+
+This starts the frontend, backend, and a PostgreSQL database — all in one command.
+
 ## Quick Start
 
 ### Backend
